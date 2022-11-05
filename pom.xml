@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>io.airlift</groupId>
+        <artifactId>airbase</artifactId>
+        <version>130</version>
+    </parent>
+
+    <groupId>com.brinqa</groupId>
+    <artifactId>neo4j-to-nebula</artifactId>
+    <version>1.0-SNAPSHOT</version>
+
+    <name>neo4j-to-nebula</name>
+
+    <properties>
+        <project.build.targetJdk>11</project.build.targetJdk>
+
+        <neo4j.driver.version>4.4.9</neo4j.driver.version>
+        <nebula.cleint.version>3.3.0</nebula.cleint.version>
+        <reactive-streams.version>1.0.4</reactive-streams.version>
+        <lombok.version>1.18.24</lombok.version>
+
+        <!-- skip basic checks -->
+        <air.check.skip-basic>true</air.check.skip-basic>
+
+        <!-- checks -->
+        <air.check.skip-jacoco>false</air.check.skip-jacoco>
+        <air.check.skip-spotbugs>false</air.check.skip-spotbugs>
+        <air.check.skip-modernizer>false</air.check.skip-modernizer>
+
+        <!-- skip extended checks -->
+        <air.check.skip-pmd>true</air.check.skip-pmd>
+        <air.check.skip-license>true</air.check.skip-license>
+        <air.check.skip-checkstyle>true</air.check.skip-checkstyle>
+
+        <!-- fail extended checks -->
+        <air.check.skip-jacoco>false</air.check.skip-jacoco>
+        <air.check.fail-spotbugs>false</air.check.fail-spotbugs>
+        <air.check.fail-modernizer>false</air.check.fail-modernizer>
+
+        <!-- release -->
+        <air.release.push-changes>true</air.release.push-changes>
+
+        <!-- javadoc lint -->
+        <air.javadoc.lint>-missing</air.javadoc.lint>
+        <!-- Latest URLs -->
+        <air.repository.snapshot.id>maven.brinqa.com</air.repository.snapshot.id>
+        <air.repository.snapshot.url>https://maven.brinqa.com/artifactory/libs-snapshot-local
+        </air.repository.snapshot.url>
+
+        <air.repository.release.id>maven.brinqa.com</air.repository.release.id>
+        <air.repository.release.url>https://maven.brinqa.com/artifactory/libs-release-local</air.repository.release.url>
+
+        <spotless.version>2.12.2</spotless.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.vesoft</groupId>
+            <artifactId>client</artifactId>
+            <version>${nebula.cleint.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.reactivestreams</groupId>
+            <artifactId>reactive-streams</artifactId>
+            <version>${reactive-streams.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.neo4j.driver</groupId>
+            <artifactId>neo4j-java-driver</artifactId>
+            <version>${neo4j.driver.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.diffplug.spotless</groupId>
+                <artifactId>spotless-maven-plugin</artifactId>
+                <version>${spotless.version}</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>apply</goal>
+                        </goals>
+                        <phase>compile</phase>
+                    </execution>
+                </executions>
+                <configuration>
+                    <!-- define a language-specific format -->
+                    <java>
+                        <importOrder/>
+                        <removeUnusedImports/>
+                        <googleJavaFormat/>
+                    </java>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

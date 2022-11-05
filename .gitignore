@@ -1,0 +1,8 @@
+.DS_Store
+target
+*.iws
+*.iml
+*.ipr
+.idea
+*.db*
+.shell_history
