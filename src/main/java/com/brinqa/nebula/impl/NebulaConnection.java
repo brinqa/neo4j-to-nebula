@@ -1,29 +1,24 @@
 package com.brinqa.nebula.impl;
 
-import java.io.Closeable;
-import java.io.IOException;
-import java.util.Map;
-
-import javax.net.SocketFactory;
-
-import com.google.common.base.Charsets;
-
-import org.neo4j.driver.exceptions.ClientException;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.facebook.thrift.TException;
 import com.facebook.thrift.protocol.TCompactProtocol;
 import com.facebook.thrift.transport.TSocket;
-import com.facebook.thrift.transport.TTransportException;
 import com.vesoft.nebula.ErrorCode;
 import com.vesoft.nebula.Value;
 import com.vesoft.nebula.client.graph.data.HostAddress;
 import com.vesoft.nebula.client.graph.exception.AuthFailedException;
-import com.vesoft.nebula.client.graph.exception.IOErrorException;
 import com.vesoft.nebula.client.graph.net.AuthResult;
 import com.vesoft.nebula.graph.ExecutionResponse;
 import com.vesoft.nebula.graph.GraphService;
 import com.vesoft.nebula.graph.GraphService.Client;
 import com.vesoft.nebula.graph.VerifyClientVersionReq;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.Map;
+import javax.net.SocketFactory;
+import org.neo4j.driver.exceptions.ClientException;
 
 public class NebulaConnection implements Closeable {
 
@@ -31,7 +26,6 @@ public class NebulaConnection implements Closeable {
   private final Client client;
   private final TSocket transport;
   private final int timezoneOffset;
-  // created
 
   public NebulaConnection(
       final HostAddress address,
@@ -49,7 +43,7 @@ public class NebulaConnection implements Closeable {
       final var resp = client.verifyClientVersion(new VerifyClientVersionReq());
       if (resp.error_code != ErrorCode.SUCCEEDED) {
         client.getInputProtocol().getTransport().close();
-        throw new ClientException(new String(resp.getError_msg(), Charsets.UTF_8));
+        throw new ClientException(new String(resp.getError_msg(), UTF_8));
       }
 
       // authenticate the connection to the server
@@ -66,24 +60,9 @@ public class NebulaConnection implements Closeable {
     return this.transport.isOpen();
   }
 
-  public ExecutionResponse execute(String stmt, Map<byte[], Value> parameterMap)
-      throws IOErrorException {
-    try {
-      return client.executeWithParameter(sessionId, stmt.getBytes(), parameterMap);
-    } catch (TException e) {
-      if (e instanceof TTransportException) {
-        TTransportException te = (TTransportException) e;
-        if (te.getType() == TTransportException.END_OF_FILE) {
-          throw new IOErrorException(IOErrorException.E_CONNECT_BROKEN, te.getMessage());
-        } else if (te.getType() == TTransportException.NOT_OPEN) {
-          throw new IOErrorException(IOErrorException.E_NO_OPEN, te.getMessage());
-        } else if (te.getType() == TTransportException.TIMED_OUT
-            || te.getMessage().contains("Read timed out")) {
-          throw new IOErrorException(IOErrorException.E_TIME_OUT, te.getMessage());
-        }
-      }
-      throw new IOErrorException(IOErrorException.E_UNKNOWN, e.getMessage());
-    }
+  /** Clients are not thread safe. */
+  public synchronized ExecutionResponse execute(String stmt, Map<byte[], Value> parameterMap) {
+    return client.executeWithParameter(sessionId, stmt.getBytes(), parameterMap);
   }
 
   public long getSessionId() {
@@ -94,9 +73,11 @@ public class NebulaConnection implements Closeable {
     return timezoneOffset;
   }
 
-  AuthResult authenticate(final String user, final String password) throws AuthFailedException {
+  private AuthResult authenticate(String user, final String password) throws AuthFailedException {
     try {
-      final var resp = client.authenticate(user.getBytes(), password.getBytes());
+      final var usr = user.getBytes(UTF_8);
+      final var pwd = password.getBytes(UTF_8);
+      final var resp = client.authenticate(usr, pwd);
       if (resp.error_code != ErrorCode.SUCCEEDED) {
         if (resp.error_msg != null) {
           throw new AuthFailedException(new String(resp.error_msg));

@@ -1,6 +1,7 @@
 package com.brinqa.nebula.impl;
 
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.AllArgsConstructor;
 import org.neo4j.driver.Query;
 import org.neo4j.driver.Record;
@@ -14,6 +15,8 @@ public class TransactionImpl implements Transaction {
 
   private final SessionImpl session;
   private final TransactionConfig config;
+
+  private final AtomicBoolean openState = new AtomicBoolean(true);
 
   @Override
   public Result run(String query, Value parameters) {
@@ -51,10 +54,12 @@ public class TransactionImpl implements Transaction {
   }
 
   @Override
-  public void close() {}
+  public void close() {
+    openState.set(false);
+  }
 
   @Override
   public boolean isOpen() {
-    return session.isOpen();
+    return openState.get();
   }
 }

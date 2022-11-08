@@ -1,8 +1,12 @@
 package com.brinqa.nebula.impl;
 
-import java.util.Map;
-import java.util.concurrent.atomic.AtomicBoolean;
+import static com.vesoft.nebula.client.graph.net.Session.value2Nvalue;
 
+import com.vesoft.nebula.client.graph.data.ResultSet;
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.neo4j.driver.AccessMode;
 import org.neo4j.driver.Bookmark;
 import org.neo4j.driver.Query;
@@ -15,23 +19,26 @@ import org.neo4j.driver.TransactionWork;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.Values;
 
-import com.facebook.thrift.TException;
-import com.vesoft.nebula.ErrorCode;
-import com.vesoft.nebula.client.graph.data.ResultSet;
-import com.vesoft.nebula.client.graph.exception.AuthFailedException;
-import com.vesoft.nebula.client.graph.exception.ClientServerIncompatibleException;
-import com.vesoft.nebula.client.graph.exception.IOErrorException;
-import com.vesoft.nebula.client.graph.net.AuthResult;
-import com.vesoft.nebula.client.graph.net.NebulaPool;
-import com.vesoft.nebula.client.graph.net.SyncConnection;
-import lombok.AllArgsConstructor;
-
-@AllArgsConstructor
+@Slf4j
 public class SessionImpl implements Session {
 
-  private final long sessionID;
+  private final String spaceName;
   private final DriverImpl driver;
   private final NebulaConnection connection;
+
+  public SessionImpl(
+      final DriverImpl driver, final NebulaConnection connection, final String spaceName) {
+    this.connection = connection;
+    this.spaceName = spaceName;
+    this.driver = driver;
+
+    initUseSpace();
+  }
+
+  void initUseSpace() {
+    final Query q = new Query(String.format("USE SPACE %s", this.spaceName));
+    executeQuery(q);
+  }
 
   /**
    * Run a query and return a result stream.
@@ -317,13 +324,8 @@ public class SessionImpl implements Session {
    */
   @Override
   public Result run(Query query, TransactionConfig config) {
-    try {
-      final ResultSet resultSet = session.execute(query.text());
-      return new ResultImpl(resultSet);
-    } catch (IOErrorException e) {
-      // NOTE:
-      throw new RuntimeException(e);
-    }
+    final ResultSet resultSet = executeQuery(query);
+    return new ResultImpl(resultSet);
   }
 
   /**
@@ -364,8 +366,12 @@ public class SessionImpl implements Session {
    */
   @Override
   public void close() {
-    if (available.getAndSet(false)) {
-      session.release();
+    try {
+      this.connection.close();
+    } catch (IOException e) {
+      log.error("Unable to close connection.", e);
+    } finally {
+      driver.invalidate(this);
     }
   }
 
@@ -376,12 +382,32 @@ public class SessionImpl implements Session {
    */
   @Override
   public boolean isOpen() {
-    return available.get();
+    return connection.isOpen();
   }
 
+  //
+  // Internal methods
+  //
 
-  //===========================================================================
-  // Internal Methods
-  //===========================================================================
+  /** Execute the query. */
+  public ResultSet executeQuery(Query query) {
+    final var params = toNebulaParameters(query);
+    final var resp = connection.execute(query.text(), params);
+    return new ResultSet(resp, connection.getTimezoneOffset());
+  }
 
+  Map<byte[], com.vesoft.nebula.Value> toNebulaParameters(Query query) {
+    final var parameterMap = query.parameters().asMap();
+    final Map<byte[], com.vesoft.nebula.Value> map = new HashMap<>();
+    parameterMap.forEach((key, value) -> map.put(key.getBytes(), value2Nvalue(value)));
+    return map;
+  }
+
+  public Long getSessionId() {
+    return this.connection.getSessionId();
+  }
+
+  public void ping() {
+    executeQuery(new Query("YIELD 1;"));
+  }
 }

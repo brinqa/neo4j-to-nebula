@@ -1,16 +1,21 @@
 package com.brinqa.nebula.impl;
 
+import static com.brinqa.nebula.impl.SocketFactoryUtil.newFactory;
+
+import com.brinqa.nebula.DriverConfig;
+import com.google.common.base.Throwables;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.vesoft.nebula.client.graph.data.HostAddress;
+import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.List;
+import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
-
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.SocketFactory;
-
-import com.google.common.base.Throwables;
-
+import lombok.extern.slf4j.Slf4j;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Metrics;
 import org.neo4j.driver.Session;
@@ -20,39 +25,52 @@ import org.neo4j.driver.exceptions.ClientException;
 import org.neo4j.driver.reactive.RxSession;
 import org.neo4j.driver.types.TypeSystem;
 
-import com.brinqa.nebula.DriverConfig;
-
-import com.vesoft.nebula.client.graph.NebulaPoolConfig;
-import com.vesoft.nebula.client.graph.data.ResultSet;
-import com.vesoft.nebula.client.graph.exception.AuthFailedException;
-import com.vesoft.nebula.client.graph.exception.ClientServerIncompatibleException;
-import com.vesoft.nebula.client.graph.exception.IOErrorException;
-import com.vesoft.nebula.client.graph.exception.NotValidConnectionException;
-import com.vesoft.nebula.client.graph.net.NebulaPool;
-
+@Slf4j
 public class DriverImpl implements Driver {
 
-  private final NebulaPool nebulaPool;
+  // static fields
   private final DriverConfig driverConfig;
-  private final SocketFactory sslSocketFactory;
+  private final SocketFactory socketFactory;
 
-  // prefer to use set or map with ID
-  private final List<Session> sessions = new CopyOnWriteArrayList<>();
+  // active fields
+  private final Cache<Long, SessionImpl> sessions;
+  private final AtomicInteger roundRobinIdx = new AtomicInteger();
 
   public DriverImpl(final DriverConfig driverConfig) throws UnknownHostException {
-
-    this.sslSocketFactory =
-        driverConfig.isEnableSsl() ? SSLFactoryUtil.buildFactory(driverConfig.getSslParam()) : null;
-
+    this.socketFactory =
+        driverConfig.isEnableSsl()
+            ? newFactory(driverConfig.getSslParam())
+            : SocketFactory.getDefault();
     this.driverConfig = driverConfig;
-    final var poolConfig = new NebulaPoolConfig();
-    poolConfig.setEnableSsl(driverConfig.isEnableSsl());
-    poolConfig.setIdleTime(driverConfig.getIdleTime());
-    poolConfig.setIntervalIdle(driverConfig.getIntervalIdle());
-    poolConfig.setTimeout(driverConfig.getTimeout());
-    poolConfig.setMaxConnSize(driverConfig.getMaxConnections());
-    this.nebulaPool = new NebulaPool();
-    this.nebulaPool.init(driverConfig.getAddresses(), poolConfig);
+
+    this.sessions =
+        CacheBuilder.newBuilder()
+            .concurrencyLevel(1)
+            .maximumSize(driverConfig.getMaxSessions())
+            .<Long, SessionImpl>removalListener(
+                notification -> {
+                  final var key = notification.getKey();
+                  final var session = notification.getValue();
+                  switch (notification.getCause()) {
+                    case EXPLICIT:
+                      break;
+                    case REPLACED:
+                      break;
+                    case COLLECTED:
+                      break;
+                    case EXPIRED:
+                      log.info("Session {} expired.", key);
+                      break;
+                    case SIZE:
+                      log.warn(
+                          "Exceeded max number of sessions {} check for leaks.",
+                          this.driverConfig.getMaxSessions());
+                      assert session != null;
+                      session.close();
+                      break;
+                  }
+                })
+            .build();
   }
 
   /**
@@ -89,11 +107,7 @@ public class DriverImpl implements Driver {
    */
   @Override
   public Session session(SessionConfig sessionConfig) {
-    try {
-      return new SessionImpl(newSession());
-    } catch (ClientServerIncompatibleException e) {
-      throw new ClientException("Failed to create session", e);
-    }
+    return newSession(sessionConfig);
   }
 
   /**
@@ -160,7 +174,11 @@ public class DriverImpl implements Driver {
    */
   @Override
   public void close() {
-    sessionManager.close();
+    for (final Session session : new ArrayList<>(sessions.asMap().values())) {
+      session.close();
+    }
+    // remove all the sessions
+    sessions.invalidateAll();
   }
 
   /**
@@ -252,15 +270,8 @@ public class DriverImpl implements Driver {
   public CompletionStage<Void> verifyConnectivityAsync() {
     return CompletableFuture.supplyAsync(
         () -> {
-          try {
-            final var session = newSession();
-            try {
-              session.ping();
-            } finally {
-              session.release();
-            }
-          } catch (ClientServerIncompatibleException e) {
-            throw new RuntimeException(e);
+          try (final var session = newSession(SessionConfig.defaultConfig())) {
+            session.ping();
           }
           return null;
         });
@@ -294,30 +305,39 @@ public class DriverImpl implements Driver {
   // ===========================================================================
 
   /**
-   * getSessionWrapper: return a SessionWrapper from sessionManager, the SessionWrapper couldn't use
-   * by multi-thread
-   *
-   * @return SessionWrapper
-   * @throws RuntimeException the exception when get SessionWrapper
+   * Build a session rotate through the available addresses upto 2x per address to fine a proper
+   * session.
    */
-  com.vesoft.nebula.client.graph.net.Session newSession()
-      throws ClientServerIncompatibleException {
+  SessionImpl newSession(SessionConfig config) {
     // create new session
     try {
-      com.vesoft.nebula.client.graph.net.Session session =
-          nebulaPool.getSession(
-              driverConfig.getUsername(), driverConfig.getPassword(), driverConfig.isReconnect());
-      final ResultSet resultSet = session.execute("USE " + driverConfig.getSpaceName());
-      if (!resultSet.isSucceeded()) {
-        throw new ClientException(
-            "Switch space `"
-                + driverConfig.getSpaceName()
-                + "' failed: "
-                + resultSet.getErrorMessage());
-      }
-      return session;
-    } catch (AuthFailedException | NotValidConnectionException | IOErrorException e) {
+      final var address = hostAddress();
+      final var timeout = driverConfig.getTimeout();
+      final var username = driverConfig.getUsername();
+      final var password = driverConfig.getPassword();
+      final var spaceName = config.database().orElse(driverConfig.getSpaceName());
+
+      final var connection =
+          new NebulaConnection(address, username, password, timeout, socketFactory);
+
+      return new SessionImpl(this, connection, spaceName);
+    } catch (UnknownHostException e) {
       throw new RuntimeException("Get session failed: " + e.getMessage());
     }
+  }
+
+  void invalidate(SessionImpl session) {
+    this.sessions.invalidate(session.getSessionId());
+  }
+
+  HostAddress hostAddress() throws UnknownHostException {
+    final var idx = roundRobinIdx.getAndIncrement() % driverConfig.getAddresses().size();
+    final var target = driverConfig.getAddresses().get(idx);
+    return hostToIp(target);
+  }
+
+  static HostAddress hostToIp(HostAddress addr) throws UnknownHostException {
+    final var ip = InetAddress.getByName(addr.getHost()).getHostAddress();
+    return new HostAddress(ip, addr.getPort());
   }
 }

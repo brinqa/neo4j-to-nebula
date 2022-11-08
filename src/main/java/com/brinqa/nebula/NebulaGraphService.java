@@ -1,8 +1,7 @@
 package com.brinqa.nebula;
 
-import java.net.UnknownHostException;
-
 import com.brinqa.nebula.impl.DriverImpl;
+import java.net.UnknownHostException;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.exceptions.ClientException;
 
