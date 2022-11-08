@@ -1,11 +1,13 @@
 package com.brinqa.nebula.impl;
 
 import static com.vesoft.nebula.client.graph.net.Session.value2Nvalue;
+import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.google.common.base.Throwables;
 import com.vesoft.nebula.client.graph.data.ResultSet;
-import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import lombok.extern.slf4j.Slf4j;
 import org.neo4j.driver.AccessMode;
 import org.neo4j.driver.Bookmark;
@@ -23,21 +25,12 @@ import org.neo4j.driver.Values;
 public class SessionImpl implements Session {
 
   private final String spaceName;
-  private final DriverImpl driver;
-  private final NebulaConnection connection;
+  private final ConnectionPool pool;
+  private final AtomicBoolean openState = new AtomicBoolean(true);
 
-  public SessionImpl(
-      final DriverImpl driver, final NebulaConnection connection, final String spaceName) {
-    this.connection = connection;
+  public SessionImpl(final ConnectionPool pool, final String spaceName) {
+    this.pool = pool;
     this.spaceName = spaceName;
-    this.driver = driver;
-
-    initUseSpace();
-  }
-
-  void initUseSpace() {
-    final Query q = new Query(String.format("USE SPACE %s", this.spaceName));
-    executeQuery(q);
   }
 
   /**
@@ -324,8 +317,7 @@ public class SessionImpl implements Session {
    */
   @Override
   public Result run(Query query, TransactionConfig config) {
-    final ResultSet resultSet = executeQuery(query);
-    return new ResultImpl(resultSet);
+    return executeQuery(query, config);
   }
 
   /**
@@ -366,13 +358,7 @@ public class SessionImpl implements Session {
    */
   @Override
   public void close() {
-    try {
-      this.connection.close();
-    } catch (IOException e) {
-      log.error("Unable to close connection.", e);
-    } finally {
-      driver.invalidate(this);
-    }
+    this.openState.set(false);
   }
 
   /**
@@ -382,32 +368,52 @@ public class SessionImpl implements Session {
    */
   @Override
   public boolean isOpen() {
-    return connection.isOpen();
+    return this.openState.get();
   }
 
   //
   // Internal methods
   //
+  public void ping() {
+    run("YIELD 1;");
+  }
 
-  /** Execute the query. */
-  public ResultSet executeQuery(Query query) {
-    final var params = toNebulaParameters(query);
-    final var resp = connection.execute(query.text(), params);
-    return new ResultSet(resp, connection.getTimezoneOffset());
+  /** TODO: Use timeout in transaction configuration. */
+  ResultImpl executeQuery(Query query, TransactionConfig config) {
+    try {
+      final Connection connection = this.pool.borrowObject();
+      try {
+        // initialize space
+        if (connection.updateCurrentSpace(this.spaceName)) {
+          final String stmt = String.format("USE SPACE %s", this.spaceName);
+          connection.execute(stmt, Map.of());
+        }
+        final long now = System.nanoTime();
+        // create nebula parameters
+        final var params = toNebulaParameters(query);
+        // execute the query
+        final var resp = connection.execute(query.text(), params);
+        // time the query
+        final long time = System.nanoTime() - now;
+        // build the nebula result set
+        final var resultSet = new ResultSet(resp, connection.getTimezoneOffset());
+        // build the neo4j summary results
+        final var summary = new ResultSummaryImpl(time, query, spaceName, connection.getAddress());
+        // build out neo4j result
+        return new ResultImpl(resultSet, summary);
+      } finally {
+        this.pool.returnObject(connection);
+      }
+    } catch (Exception e) {
+      Throwables.throwIfUnchecked(e);
+      throw new RuntimeException(e);
+    }
   }
 
   Map<byte[], com.vesoft.nebula.Value> toNebulaParameters(Query query) {
     final var parameterMap = query.parameters().asMap();
     final Map<byte[], com.vesoft.nebula.Value> map = new HashMap<>();
-    parameterMap.forEach((key, value) -> map.put(key.getBytes(), value2Nvalue(value)));
+    parameterMap.forEach((key, value) -> map.put(key.getBytes(UTF_8), value2Nvalue(value)));
     return map;
-  }
-
-  public Long getSessionId() {
-    return this.connection.getSessionId();
-  }
-
-  public void ping() {
-    executeQuery(new Query("YIELD 1;"));
   }
 }

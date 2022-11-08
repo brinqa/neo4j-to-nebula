@@ -17,6 +17,7 @@ import org.neo4j.driver.summary.ResultSummary;
 public class ResultImpl implements Result {
 
   private final ResultSet resultSet;
+  private final ResultSummary resultSummary;
 
   private final AtomicInteger index = new AtomicInteger();
 
@@ -48,7 +49,10 @@ public class ResultImpl implements Result {
    */
   @Override
   public Record next() {
-    return get(index.getAndIncrement());
+    if (hasNext()) {
+      return get(index.getAndIncrement());
+    }
+    throw new NoSuchRecordException("No more records left.");
   }
 
   /**
@@ -63,8 +67,9 @@ public class ResultImpl implements Result {
    */
   @Override
   public Record single() throws NoSuchRecordException {
-    if (resultSet.isEmpty()) {
-      throw new NoSuchRecordException("No records returned");
+    int size = resultSet.rowsSize();
+    if (size != 1) {
+      throw new NoSuchRecordException("Invalid number of records returned: " + size);
     }
     return get(0);
   }
@@ -151,7 +156,6 @@ public class ResultImpl implements Result {
    */
   @Override
   public ResultSummary consume() {
-    // TODO
-    return new ResultSummaryImpl();
+    return this.resultSummary;
   }
 }

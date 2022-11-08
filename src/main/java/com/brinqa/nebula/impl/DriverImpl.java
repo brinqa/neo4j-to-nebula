@@ -1,20 +1,11 @@
 package com.brinqa.nebula.impl;
 
-import static com.brinqa.nebula.impl.SocketFactoryUtil.newFactory;
-
 import com.brinqa.nebula.DriverConfig;
 import com.google.common.base.Throwables;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.vesoft.nebula.client.graph.data.HostAddress;
-import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.atomic.AtomicInteger;
-import javax.net.SocketFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Metrics;
@@ -28,49 +19,12 @@ import org.neo4j.driver.types.TypeSystem;
 @Slf4j
 public class DriverImpl implements Driver {
 
-  // static fields
   private final DriverConfig driverConfig;
-  private final SocketFactory socketFactory;
-
-  // active fields
-  private final Cache<Long, SessionImpl> sessions;
-  private final AtomicInteger roundRobinIdx = new AtomicInteger();
+  private final ConnectionPool pool;
 
   public DriverImpl(final DriverConfig driverConfig) throws UnknownHostException {
-    this.socketFactory =
-        driverConfig.isEnableSsl()
-            ? newFactory(driverConfig.getSslParam())
-            : SocketFactory.getDefault();
     this.driverConfig = driverConfig;
-
-    this.sessions =
-        CacheBuilder.newBuilder()
-            .concurrencyLevel(1)
-            .maximumSize(driverConfig.getMaxSessions())
-            .<Long, SessionImpl>removalListener(
-                notification -> {
-                  final var key = notification.getKey();
-                  final var session = notification.getValue();
-                  switch (notification.getCause()) {
-                    case EXPLICIT:
-                      break;
-                    case REPLACED:
-                      break;
-                    case COLLECTED:
-                      break;
-                    case EXPIRED:
-                      log.info("Session {} expired.", key);
-                      break;
-                    case SIZE:
-                      log.warn(
-                          "Exceeded max number of sessions {} check for leaks.",
-                          this.driverConfig.getMaxSessions());
-                      assert session != null;
-                      session.close();
-                      break;
-                  }
-                })
-            .build();
+    this.pool = new ConnectionPool(driverConfig);
   }
 
   /**
@@ -135,7 +89,7 @@ public class DriverImpl implements Driver {
    */
   @Override
   public RxSession rxSession(SessionConfig sessionConfig) {
-    throw new UnsupportedOperationException();
+    return new RxSessionImpl();
   }
 
   /**
@@ -174,11 +128,7 @@ public class DriverImpl implements Driver {
    */
   @Override
   public void close() {
-    for (final Session session : new ArrayList<>(sessions.asMap().values())) {
-      session.close();
-    }
-    // remove all the sessions
-    sessions.invalidateAll();
+    this.pool.close();
   }
 
   /**
@@ -311,33 +261,10 @@ public class DriverImpl implements Driver {
   SessionImpl newSession(SessionConfig config) {
     // create new session
     try {
-      final var address = hostAddress();
-      final var timeout = driverConfig.getTimeout();
-      final var username = driverConfig.getUsername();
-      final var password = driverConfig.getPassword();
       final var spaceName = config.database().orElse(driverConfig.getSpaceName());
-
-      final var connection =
-          new NebulaConnection(address, username, password, timeout, socketFactory);
-
-      return new SessionImpl(this, connection, spaceName);
-    } catch (UnknownHostException e) {
+      return new SessionImpl(pool, spaceName);
+    } catch (Exception e) {
       throw new RuntimeException("Get session failed: " + e.getMessage());
     }
-  }
-
-  void invalidate(SessionImpl session) {
-    this.sessions.invalidate(session.getSessionId());
-  }
-
-  HostAddress hostAddress() throws UnknownHostException {
-    final var idx = roundRobinIdx.getAndIncrement() % driverConfig.getAddresses().size();
-    final var target = driverConfig.getAddresses().get(idx);
-    return hostToIp(target);
-  }
-
-  static HostAddress hostToIp(HostAddress addr) throws UnknownHostException {
-    final var ip = InetAddress.getByName(addr.getHost()).getHostAddress();
-    return new HostAddress(ip, addr.getPort());
   }
 }

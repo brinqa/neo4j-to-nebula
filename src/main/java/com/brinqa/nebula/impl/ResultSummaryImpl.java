@@ -1,7 +1,9 @@
 package com.brinqa.nebula.impl;
 
+import com.vesoft.nebula.client.graph.data.HostAddress;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import lombok.AllArgsConstructor;
 import org.neo4j.driver.Query;
 import org.neo4j.driver.summary.DatabaseInfo;
 import org.neo4j.driver.summary.Notification;
@@ -12,14 +14,19 @@ import org.neo4j.driver.summary.ResultSummary;
 import org.neo4j.driver.summary.ServerInfo;
 import org.neo4j.driver.summary.SummaryCounters;
 
+@AllArgsConstructor
 public class ResultSummaryImpl implements ResultSummary {
+  private final long time;
+  private final Query query;
+  private final String spaceName;
+  private final HostAddress address;
 
   /**
    * @return query that has been executed
    */
   @Override
   public Query query() {
-    return null;
+    return this.query;
   }
 
   /**
@@ -27,7 +34,7 @@ public class ResultSummaryImpl implements ResultSummary {
    */
   @Override
   public SummaryCounters counters() {
-    return null;
+    return SummaryCountersImpl.EMPTY;
   }
 
   /**
@@ -35,7 +42,7 @@ public class ResultSummaryImpl implements ResultSummary {
    */
   @Override
   public QueryType queryType() {
-    return null;
+    return QueryType.READ_WRITE;
   }
 
   /**
@@ -92,7 +99,7 @@ public class ResultSummaryImpl implements ResultSummary {
    */
   @Override
   public List<Notification> notifications() {
-    return null;
+    return List.of();
   }
 
   /**
@@ -103,7 +110,7 @@ public class ResultSummaryImpl implements ResultSummary {
    */
   @Override
   public long resultAvailableAfter(TimeUnit unit) {
-    return 0;
+    return TimeUnit.NANOSECONDS.convert(this.time, unit);
   }
 
   /**
@@ -114,7 +121,7 @@ public class ResultSummaryImpl implements ResultSummary {
    */
   @Override
   public long resultConsumedAfter(TimeUnit unit) {
-    return 0;
+    return TimeUnit.NANOSECONDS.convert(this.time, unit);
   }
 
   /**
@@ -124,7 +131,7 @@ public class ResultSummaryImpl implements ResultSummary {
    */
   @Override
   public ServerInfo server() {
-    return null;
+    return new ServerInfoImpl(address);
   }
 
   /**
@@ -134,6 +141,6 @@ public class ResultSummaryImpl implements ResultSummary {
    */
   @Override
   public DatabaseInfo database() {
-    return null;
+    return () -> spaceName;
   }
 }

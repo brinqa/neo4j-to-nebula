@@ -17,23 +17,31 @@ import com.vesoft.nebula.graph.VerifyClientVersionReq;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.net.SocketFactory;
+import lombok.Getter;
 import org.neo4j.driver.exceptions.ClientException;
 
-public class NebulaConnection implements Closeable {
+public class Connection implements Closeable {
 
-  private final long sessionId;
   private final Client client;
   private final TSocket transport;
-  private final int timezoneOffset;
+  @Getter private final long sessionId;
+  @Getter private final int timezoneOffset;
+  @Getter private final HostAddress address;
 
-  public NebulaConnection(
+  private final AtomicReference<String> currentSpace = new AtomicReference<>();
+
+  public Connection(
       final HostAddress address,
       final String username,
       final String password,
       final int timeout,
       final SocketFactory socketFactory) {
     try {
+      this.address = address;
+
       final int tm = timeout <= 0 ? Integer.MAX_VALUE : timeout;
       final var socket = socketFactory.createSocket(address.getHost(), address.getPort());
       this.transport = new TSocket(socket, tm, tm);
@@ -62,15 +70,7 @@ public class NebulaConnection implements Closeable {
 
   /** Clients are not thread safe. */
   public synchronized ExecutionResponse execute(String stmt, Map<byte[], Value> parameterMap) {
-    return client.executeWithParameter(sessionId, stmt.getBytes(), parameterMap);
-  }
-
-  public long getSessionId() {
-    return sessionId;
-  }
-
-  public int getTimezoneOffset() {
-    return timezoneOffset;
+    return client.executeWithParameter(sessionId, stmt.getBytes(UTF_8), parameterMap);
   }
 
   private AuthResult authenticate(String user, final String password) throws AuthFailedException {
@@ -80,10 +80,10 @@ public class NebulaConnection implements Closeable {
       final var resp = client.authenticate(usr, pwd);
       if (resp.error_code != ErrorCode.SUCCEEDED) {
         if (resp.error_msg != null) {
-          throw new AuthFailedException(new String(resp.error_msg));
+          throw new AuthFailedException(new String(resp.error_msg, UTF_8));
         } else {
           throw new AuthFailedException(
-              "The error_msg is null, " + "maybe the service not set or the response is disorder.");
+              "The error_msg is null, maybe the service not set or the response is disorder.");
         }
       }
       return new AuthResult(resp.getSession_id(), resp.getTime_zone_offset_seconds());
@@ -110,5 +110,26 @@ public class NebulaConnection implements Closeable {
     } finally {
       this.transport.close();
     }
+  }
+
+  public boolean updateCurrentSpace(String space) {
+    return this.currentSpace.compareAndSet(space, space);
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof Connection)) {
+      return false;
+    }
+    Connection that = (Connection) o;
+    return getSessionId() == that.getSessionId();
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(getSessionId());
   }
 }
