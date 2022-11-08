@@ -82,12 +82,16 @@ public class Query {
     this(text, Values.EmptyMap);
   }
 
-  /** @return the query text */
+  /**
+   * @return the query text
+   */
   public String text() {
     return text;
   }
 
-  /** @return the parameter map */
+  /**
+   * @return the parameter map
+   */
   public Value parameters() {
     return parameters;
   }

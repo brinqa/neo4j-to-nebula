@@ -41,7 +41,9 @@ import org.neo4j.driver.util.Immutable;
  */
 @Immutable
 public interface Plan {
-  /** @return the operation this plan is performing. */
+  /**
+   * @return the operation this plan is performing.
+   */
   String operatorType();
 
   /**

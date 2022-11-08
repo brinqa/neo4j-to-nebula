@@ -1,27 +1,58 @@
 package com.brinqa.nebula.impl;
 
-import com.google.common.base.Throwables;
-import com.vesoft.nebula.client.graph.SessionsManagerConfig;
-import com.vesoft.nebula.client.graph.net.SessionsManager;
+import java.net.UnknownHostException;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
+
+import javax.net.SocketFactory;
+
+import com.google.common.base.Throwables;
+
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Metrics;
 import org.neo4j.driver.Session;
 import org.neo4j.driver.SessionConfig;
 import org.neo4j.driver.async.AsyncSession;
+import org.neo4j.driver.exceptions.ClientException;
 import org.neo4j.driver.reactive.RxSession;
 import org.neo4j.driver.types.TypeSystem;
 
+import com.brinqa.nebula.DriverConfig;
+
+import com.vesoft.nebula.client.graph.NebulaPoolConfig;
+import com.vesoft.nebula.client.graph.data.ResultSet;
+import com.vesoft.nebula.client.graph.exception.AuthFailedException;
+import com.vesoft.nebula.client.graph.exception.ClientServerIncompatibleException;
+import com.vesoft.nebula.client.graph.exception.IOErrorException;
+import com.vesoft.nebula.client.graph.exception.NotValidConnectionException;
+import com.vesoft.nebula.client.graph.net.NebulaPool;
+
 public class DriverImpl implements Driver {
 
-  private final SessionsManager sessionManager;
-  private final SessionsManagerConfig sessionsManagerConfig;
+  private final NebulaPool nebulaPool;
+  private final DriverConfig driverConfig;
+  private final SocketFactory sslSocketFactory;
 
-  public DriverImpl(SessionsManagerConfig config) {
-    this.sessionsManagerConfig = config;
-    this.sessionManager = new SessionsManager(this.sessionsManagerConfig);
+  // prefer to use set or map with ID
+  private final List<Session> sessions = new CopyOnWriteArrayList<>();
+
+  public DriverImpl(final DriverConfig driverConfig) throws UnknownHostException {
+
+    this.sslSocketFactory =
+        driverConfig.isEnableSsl() ? SSLFactoryUtil.buildFactory(driverConfig.getSslParam()) : null;
+
+    this.driverConfig = driverConfig;
+    final var poolConfig = new NebulaPoolConfig();
+    poolConfig.setEnableSsl(driverConfig.isEnableSsl());
+    poolConfig.setIdleTime(driverConfig.getIdleTime());
+    poolConfig.setIntervalIdle(driverConfig.getIntervalIdle());
+    poolConfig.setTimeout(driverConfig.getTimeout());
+    poolConfig.setMaxConnSize(driverConfig.getMaxConnections());
+    this.nebulaPool = new NebulaPool();
+    this.nebulaPool.init(driverConfig.getAddresses(), poolConfig);
   }
 
   /**
@@ -31,7 +62,7 @@ public class DriverImpl implements Driver {
    */
   @Override
   public boolean isEncrypted() {
-    return this.sessionsManagerConfig.getPoolConfig().isEnableSsl();
+    return this.driverConfig.isEnableSsl();
   }
 
   /**
@@ -44,7 +75,7 @@ public class DriverImpl implements Driver {
    */
   @Override
   public Session session() {
-    return session(null);
+    return session(SessionConfig.defaultConfig());
   }
 
   /**
@@ -58,8 +89,11 @@ public class DriverImpl implements Driver {
    */
   @Override
   public Session session(SessionConfig sessionConfig) {
-    // ignore everything in the configuration.
-    return new SessionImpl(sessionManager);
+    try {
+      return new SessionImpl(newSession());
+    } catch (ClientServerIncompatibleException e) {
+      throw new ClientException("Failed to create session", e);
+    }
   }
 
   /**
@@ -73,7 +107,7 @@ public class DriverImpl implements Driver {
    */
   @Override
   public RxSession rxSession() {
-    return rxSession(null);
+    return rxSession(SessionConfig.defaultConfig());
   }
 
   /**
@@ -101,7 +135,7 @@ public class DriverImpl implements Driver {
    */
   @Override
   public AsyncSession asyncSession() {
-    return null;
+    return asyncSession(SessionConfig.defaultConfig());
   }
 
   /**
@@ -115,7 +149,7 @@ public class DriverImpl implements Driver {
    */
   @Override
   public AsyncSession asyncSession(SessionConfig sessionConfig) {
-    return null;
+    throw new UnsupportedOperationException();
   }
 
   /**
@@ -140,7 +174,11 @@ public class DriverImpl implements Driver {
    */
   @Override
   public CompletionStage<Void> closeAsync() {
-    return CompletableFuture.completedFuture(null);
+    return CompletableFuture.supplyAsync(
+        () -> {
+          close();
+          return null;
+        });
   }
 
   /**
@@ -212,7 +250,20 @@ public class DriverImpl implements Driver {
    */
   @Override
   public CompletionStage<Void> verifyConnectivityAsync() {
-    return null;
+    return CompletableFuture.supplyAsync(
+        () -> {
+          try {
+            final var session = newSession();
+            try {
+              session.ping();
+            } finally {
+              session.release();
+            }
+          } catch (ClientServerIncompatibleException e) {
+            throw new RuntimeException(e);
+          }
+          return null;
+        });
   }
 
   /**
@@ -236,5 +287,37 @@ public class DriverImpl implements Driver {
   @Override
   public CompletionStage<Boolean> supportsMultiDbAsync() {
     return CompletableFuture.completedFuture(true);
+  }
+
+  // ===========================================================================
+  // Internal Methods
+  // ===========================================================================
+
+  /**
+   * getSessionWrapper: return a SessionWrapper from sessionManager, the SessionWrapper couldn't use
+   * by multi-thread
+   *
+   * @return SessionWrapper
+   * @throws RuntimeException the exception when get SessionWrapper
+   */
+  com.vesoft.nebula.client.graph.net.Session newSession()
+      throws ClientServerIncompatibleException {
+    // create new session
+    try {
+      com.vesoft.nebula.client.graph.net.Session session =
+          nebulaPool.getSession(
+              driverConfig.getUsername(), driverConfig.getPassword(), driverConfig.isReconnect());
+      final ResultSet resultSet = session.execute("USE " + driverConfig.getSpaceName());
+      if (!resultSet.isSucceeded()) {
+        throw new ClientException(
+            "Switch space `"
+                + driverConfig.getSpaceName()
+                + "' failed: "
+                + resultSet.getErrorMessage());
+      }
+      return session;
+    } catch (AuthFailedException | NotValidConnectionException | IOErrorException e) {
+      throw new RuntimeException("Get session failed: " + e.getMessage());
+    }
   }
 }

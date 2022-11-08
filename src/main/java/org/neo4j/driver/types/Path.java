@@ -50,7 +50,9 @@ public interface Path extends Iterable<Path.Segment> {
    * (n2)<-[r2]-(n3) }
    */
   interface Segment {
-    /** @return the relationship underlying this path segment */
+    /**
+     * @return the relationship underlying this path segment
+     */
     Relationship relationship();
 
     /**
@@ -68,10 +70,14 @@ public interface Path extends Iterable<Path.Segment> {
     Node end();
   }
 
-  /** @return the start node of this path */
+  /**
+   * @return the start node of this path
+   */
   Node start();
 
-  /** @return the end node of this path */
+  /**
+   * @return the end node of this path
+   */
   Node end();
 
   /**

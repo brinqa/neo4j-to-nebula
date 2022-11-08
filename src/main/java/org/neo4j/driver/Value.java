@@ -134,7 +134,9 @@ public interface Value extends MapAccessor, MapAccessorWithDefaultValue {
    */
   Value get(int index);
 
-  /** @return The type of this value as defined in the Neo4j type system */
+  /**
+   * @return The type of this value as defined in the Neo4j type system
+   */
   @Experimental
   Type type();
 
@@ -147,13 +149,19 @@ public interface Value extends MapAccessor, MapAccessorWithDefaultValue {
   @Experimental
   boolean hasType(Type type);
 
-  /** @return {@code true} if the value is a Boolean value and has the value True. */
+  /**
+   * @return {@code true} if the value is a Boolean value and has the value True.
+   */
   boolean isTrue();
 
-  /** @return {@code true} if the value is a Boolean value and has the value False. */
+  /**
+   * @return {@code true} if the value is a Boolean value and has the value False.
+   */
   boolean isFalse();
 
-  /** @return {@code true} if the value is a Null, otherwise {@code false} */
+  /**
+   * @return {@code true} if the value is a Null, otherwise {@code false}
+   */
   boolean isNull();
 
   /**

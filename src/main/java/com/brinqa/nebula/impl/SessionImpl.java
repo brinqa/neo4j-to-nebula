@@ -1,9 +1,9 @@
 package com.brinqa.nebula.impl;
 
-import com.vesoft.nebula.client.graph.exception.ClientServerIncompatibleException;
-import com.vesoft.nebula.client.graph.net.SessionsManager;
 import java.util.Map;
-import lombok.AllArgsConstructor;
+import java.util.concurrent.atomic.AtomicBoolean;
+
+import org.neo4j.driver.AccessMode;
 import org.neo4j.driver.Bookmark;
 import org.neo4j.driver.Query;
 import org.neo4j.driver.Record;
@@ -13,11 +13,25 @@ import org.neo4j.driver.Transaction;
 import org.neo4j.driver.TransactionConfig;
 import org.neo4j.driver.TransactionWork;
 import org.neo4j.driver.Value;
+import org.neo4j.driver.Values;
+
+import com.facebook.thrift.TException;
+import com.vesoft.nebula.ErrorCode;
+import com.vesoft.nebula.client.graph.data.ResultSet;
+import com.vesoft.nebula.client.graph.exception.AuthFailedException;
+import com.vesoft.nebula.client.graph.exception.ClientServerIncompatibleException;
+import com.vesoft.nebula.client.graph.exception.IOErrorException;
+import com.vesoft.nebula.client.graph.net.AuthResult;
+import com.vesoft.nebula.client.graph.net.NebulaPool;
+import com.vesoft.nebula.client.graph.net.SyncConnection;
+import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
 public class SessionImpl implements Session {
 
-  private final SessionsManager sessionsManager;
+  private final long sessionID;
+  private final DriverImpl driver;
+  private final NebulaConnection connection;
 
   /**
    * Run a query and return a result stream.
@@ -46,13 +60,8 @@ public class SessionImpl implements Session {
    */
   @Override
   public Result run(String query, Value parameters) {
-    try {
-      final var wrapper = sessionsManager.getSessionWrapper();
-
-      return null;
-    } catch (ClientServerIncompatibleException e) {
-      throw new IllegalStateException(e);
-    }
+    final Query q = new Query(query, parameters);
+    return run(q, TransactionConfig.empty());
   }
 
   /**
@@ -82,7 +91,8 @@ public class SessionImpl implements Session {
    */
   @Override
   public Result run(String query, Map<String, Object> parameters) {
-    return null;
+    final Query q = new Query(query, parameters);
+    return run(q, TransactionConfig.empty());
   }
 
   /**
@@ -101,7 +111,7 @@ public class SessionImpl implements Session {
    */
   @Override
   public Result run(String query, Record parameters) {
-    return null;
+    return run(query, parameters.asMap());
   }
 
   /**
@@ -112,7 +122,7 @@ public class SessionImpl implements Session {
    */
   @Override
   public Result run(String query) {
-    return null;
+    return run(new Query(query));
   }
 
   /**
@@ -130,7 +140,7 @@ public class SessionImpl implements Session {
    */
   @Override
   public Result run(Query query) {
-    return null;
+    return run(query, TransactionConfig.empty());
   }
 
   /**
@@ -142,7 +152,7 @@ public class SessionImpl implements Session {
    */
   @Override
   public Transaction beginTransaction() {
-    return null;
+    return beginTransaction(TransactionConfig.empty());
   }
 
   /**
@@ -155,7 +165,7 @@ public class SessionImpl implements Session {
    */
   @Override
   public Transaction beginTransaction(TransactionConfig config) {
-    return null;
+    return new TransactionImpl(this, config);
   }
 
   /**
@@ -172,7 +182,7 @@ public class SessionImpl implements Session {
    */
   @Override
   public <T> T readTransaction(TransactionWork<T> work) {
-    return null;
+    return readTransaction(work, TransactionConfig.empty());
   }
 
   /**
@@ -191,7 +201,7 @@ public class SessionImpl implements Session {
    */
   @Override
   public <T> T readTransaction(TransactionWork<T> work, TransactionConfig config) {
-    return null;
+    return work.execute(new TransactionImpl(this, config));
   }
 
   /**
@@ -208,7 +218,7 @@ public class SessionImpl implements Session {
    */
   @Override
   public <T> T writeTransaction(TransactionWork<T> work) {
-    return null;
+    return readTransaction(work);
   }
 
   /**
@@ -227,7 +237,7 @@ public class SessionImpl implements Session {
    */
   @Override
   public <T> T writeTransaction(TransactionWork<T> work, TransactionConfig config) {
-    return null;
+    return readTransaction(work, config);
   }
 
   /**
@@ -240,7 +250,7 @@ public class SessionImpl implements Session {
    */
   @Override
   public Result run(String query, TransactionConfig config) {
-    return null;
+    return run(new Query(query), config);
   }
 
   /**
@@ -279,7 +289,7 @@ public class SessionImpl implements Session {
    */
   @Override
   public Result run(String query, Map<String, Object> parameters, TransactionConfig config) {
-    return null;
+    return run(new Query(query, parameters), config);
   }
 
   /**
@@ -307,7 +317,13 @@ public class SessionImpl implements Session {
    */
   @Override
   public Result run(Query query, TransactionConfig config) {
-    return null;
+    try {
+      final ResultSet resultSet = session.execute(query.text());
+      return new ResultImpl(resultSet);
+    } catch (IOErrorException e) {
+      // NOTE:
+      throw new RuntimeException(e);
+    }
   }
 
   /**
@@ -347,7 +363,11 @@ public class SessionImpl implements Session {
    * sessions is very low cost.
    */
   @Override
-  public void close() {}
+  public void close() {
+    if (available.getAndSet(false)) {
+      session.release();
+    }
+  }
 
   /**
    * Detect whether this resource is still open
@@ -356,6 +376,12 @@ public class SessionImpl implements Session {
    */
   @Override
   public boolean isOpen() {
-    return false;
+    return available.get();
   }
+
+
+  //===========================================================================
+  // Internal Methods
+  //===========================================================================
+
 }

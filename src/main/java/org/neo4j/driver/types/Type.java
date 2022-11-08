@@ -30,7 +30,9 @@ import org.neo4j.driver.util.Immutable;
 @Immutable
 @Experimental
 public interface Type {
-  /** @return the name of the Cypher type (as defined by Cypher) */
+  /**
+   * @return the name of the Cypher type (as defined by Cypher)
+   */
   String name();
 
   /**

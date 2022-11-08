@@ -34,37 +34,59 @@ public interface SummaryCounters {
    */
   boolean containsUpdates();
 
-  /** @return number of nodes created. */
+  /**
+   * @return number of nodes created.
+   */
   int nodesCreated();
 
-  /** @return number of nodes deleted. */
+  /**
+   * @return number of nodes deleted.
+   */
   int nodesDeleted();
 
-  /** @return number of relationships created. */
+  /**
+   * @return number of relationships created.
+   */
   int relationshipsCreated();
 
-  /** @return number of relationships deleted. */
+  /**
+   * @return number of relationships deleted.
+   */
   int relationshipsDeleted();
 
-  /** @return number of properties (on both nodes and relationships) set. */
+  /**
+   * @return number of properties (on both nodes and relationships) set.
+   */
   int propertiesSet();
 
-  /** @return number of labels added to nodes. */
+  /**
+   * @return number of labels added to nodes.
+   */
   int labelsAdded();
 
-  /** @return number of labels removed from nodes. */
+  /**
+   * @return number of labels removed from nodes.
+   */
   int labelsRemoved();
 
-  /** @return number of indexes added to the schema. */
+  /**
+   * @return number of indexes added to the schema.
+   */
   int indexesAdded();
 
-  /** @return number of indexes removed from the schema. */
+  /**
+   * @return number of indexes removed from the schema.
+   */
   int indexesRemoved();
 
-  /** @return number of constraints added to the schema. */
+  /**
+   * @return number of constraints added to the schema.
+   */
   int constraintsAdded();
 
-  /** @return number of constraints removed from the schema. */
+  /**
+   * @return number of constraints removed from the schema.
+   */
   int constraintsRemoved();
 
   /**
@@ -74,6 +96,8 @@ public interface SummaryCounters {
    */
   boolean containsSystemUpdates();
 
-  /** @return the number of system updates performed by this query. */
+  /**
+   * @return the number of system updates performed by this query.
+   */
   int systemUpdates();
 }

@@ -1,75 +1,70 @@
-/*
- * Copyright (c) "Neo4j"
- * Neo4j Sweden AB [http://neo4j.com]
- *
- * This file is part of Neo4j.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-package org.neo4j.driver.summary;
+package com.brinqa.nebula.impl;
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import org.neo4j.driver.Query;
-import org.neo4j.driver.util.Immutable;
+import org.neo4j.driver.summary.DatabaseInfo;
+import org.neo4j.driver.summary.Notification;
+import org.neo4j.driver.summary.Plan;
+import org.neo4j.driver.summary.ProfiledPlan;
+import org.neo4j.driver.summary.QueryType;
+import org.neo4j.driver.summary.ResultSummary;
+import org.neo4j.driver.summary.ServerInfo;
+import org.neo4j.driver.summary.SummaryCounters;
 
-/**
- * The result summary of running a query. The result summary interface can be used to investigate
- * details about the result, like the type of query run, how many and which kinds of updates have
- * been executed, and query plan and profiling information if available.
- *
- * <p>The result summary is only available after all result records have been consumed.
- *
- * <p>Keeping the result summary around does not influence the lifecycle of any associated session
- * and/or transaction.
- *
- * @since 1.0
- */
-@Immutable
-public interface ResultSummary {
+public class ResultSummaryImpl implements ResultSummary {
+
   /**
    * @return query that has been executed
    */
-  Query query();
+  @Override
+  public Query query() {
+    return null;
+  }
 
   /**
    * @return counters for operations the query triggered
    */
-  SummaryCounters counters();
+  @Override
+  public SummaryCounters counters() {
+    return null;
+  }
 
   /**
    * @return type of query that has been executed
    */
-  QueryType queryType();
+  @Override
+  public QueryType queryType() {
+    return null;
+  }
 
   /**
    * @return true if the result contained a query plan, i.e. is the summary of a Cypher "PROFILE" or
    *     "EXPLAIN" query
    */
-  boolean hasPlan();
+  @Override
+  public boolean hasPlan() {
+    return false;
+  }
 
   /**
    * @return true if the result contained profiling information, i.e. is the summary of a Cypher
    *     "PROFILE" query
    */
-  boolean hasProfile();
+  @Override
+  public boolean hasProfile() {
+    return false;
+  }
 
   /**
    * This describes how the database will execute your query.
    *
    * @return query plan for the executed query if available, otherwise null
    */
-  Plan plan();
+  @Override
+  public Plan plan() {
+    return null;
+  }
 
   /**
    * This describes how the database did execute your query.
@@ -80,7 +75,10 @@ public interface ResultSummary {
    *
    * @return profiled query plan for the executed query if available, otherwise null
    */
-  ProfiledPlan profile();
+  @Override
+  public ProfiledPlan profile() {
+    return null;
+  }
 
   /**
    * A list of notifications that might arise when executing the query. Notifications can be
@@ -92,7 +90,10 @@ public interface ResultSummary {
    * @return a list of notifications produced while executing the query. The list will be empty if
    *     no notifications produced while executing the query.
    */
-  List<Notification> notifications();
+  @Override
+  public List<Notification> notifications() {
+    return null;
+  }
 
   /**
    * The time it took the server to make the result available for consumption.
@@ -100,7 +101,10 @@ public interface ResultSummary {
    * @param unit The unit of the duration.
    * @return The time it took for the server to have the result available in the provided time unit.
    */
-  long resultAvailableAfter(TimeUnit unit);
+  @Override
+  public long resultAvailableAfter(TimeUnit unit) {
+    return 0;
+  }
 
   /**
    * The time it took the server to consume the result.
@@ -108,19 +112,28 @@ public interface ResultSummary {
    * @param unit The unit of the duration.
    * @return The time it took for the server to consume the result in the provided time unit.
    */
-  long resultConsumedAfter(TimeUnit unit);
+  @Override
+  public long resultConsumedAfter(TimeUnit unit) {
+    return 0;
+  }
 
   /**
    * The basic information of the server where the result is obtained from
    *
    * @return basic information of the server where the result is obtained from
    */
-  ServerInfo server();
+  @Override
+  public ServerInfo server() {
+    return null;
+  }
 
   /**
    * The basic information of the database where the result is obtained from
    *
    * @return the basic information of the database where the result is obtained from
    */
-  DatabaseInfo database();
+  @Override
+  public DatabaseInfo database() {
+    return null;
+  }
 }
