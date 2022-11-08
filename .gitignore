@@ -6,3 +6,5 @@ target
 .idea
 *.db*
 .shell_history
+docker/logs
+docker/data
