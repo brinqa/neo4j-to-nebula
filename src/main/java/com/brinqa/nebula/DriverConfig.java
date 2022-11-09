@@ -45,6 +45,8 @@ public class DriverConfig {
    */
   @Default String password = "nebula";
 
+  @Default int maxRetries = 20;
+
   /**
    * @return the max number of sessions for all addresses.
    */

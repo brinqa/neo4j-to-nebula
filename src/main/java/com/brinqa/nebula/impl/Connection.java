@@ -8,9 +8,9 @@ import com.facebook.thrift.transport.TSocket;
 import com.vesoft.nebula.ErrorCode;
 import com.vesoft.nebula.Value;
 import com.vesoft.nebula.client.graph.data.HostAddress;
+import com.vesoft.nebula.client.graph.data.ResultSet;
 import com.vesoft.nebula.client.graph.exception.AuthFailedException;
 import com.vesoft.nebula.client.graph.net.AuthResult;
-import com.vesoft.nebula.graph.ExecutionResponse;
 import com.vesoft.nebula.graph.GraphService;
 import com.vesoft.nebula.graph.GraphService.Client;
 import com.vesoft.nebula.graph.VerifyClientVersionReq;
@@ -69,8 +69,9 @@ public class Connection implements Closeable {
   }
 
   /** Clients are not thread safe. */
-  public synchronized ExecutionResponse execute(String stmt, Map<byte[], Value> parameterMap) {
-    return client.executeWithParameter(sessionId, stmt.getBytes(UTF_8), parameterMap);
+  public synchronized ResultSet execute(String stmt, Map<byte[], Value> parameterMap) {
+    final var resp = client.executeWithParameter(sessionId, stmt.getBytes(UTF_8), parameterMap);
+    return new ResultSet(resp, getTimezoneOffset());
   }
 
   private AuthResult authenticate(String user, final String password) throws AuthFailedException {
@@ -112,8 +113,8 @@ public class Connection implements Closeable {
     }
   }
 
-  public boolean updateCurrentSpace(String space) {
-    return this.currentSpace.compareAndSet(space, space);
+  public synchronized boolean updateCurrentSpace(String space) {
+    return !this.currentSpace.compareAndSet(space, space);
   }
 
   @Override

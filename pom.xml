@@ -20,6 +20,7 @@
         <project.build.targetJdk>11</project.build.targetJdk>
 
         <lombok.version>1.18.24</lombok.version>
+        <resilience4j.version>1.7.1</resilience4j.version>
         <neo4j.driver.version>4.4.9</neo4j.driver.version>
         <nebula.cleint.version>3.3.0</nebula.cleint.version>
         <testcontainers.version>1.17.5</testcontainers.version>
@@ -101,6 +102,11 @@
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.github.resilience4j</groupId>
+            <artifactId>resilience4j-retry</artifactId>
+            <version>${resilience4j.version}</version>
         </dependency>
     </dependencies>
 

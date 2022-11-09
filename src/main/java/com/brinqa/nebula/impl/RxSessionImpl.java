@@ -17,113 +17,64 @@ import org.reactivestreams.Publisher;
 
 public class RxSessionImpl implements RxSession {
 
-  /**
-   * Register running of a query and return a reactive result stream. The query is not executed when
-   * the reactive result is returned. Instead, the publishers in the result will actually start the
-   * execution of the query.
-   *
-   * <p>This method takes a set of parameters that will be injected into the query by Neo4j. Using
-   * parameters is highly encouraged, it helps avoid dangerous cypher injection attacks and improves
-   * database performance as Neo4j can re-use query plans more often.
-   *
-   * <p>This particular method takes a {@link Value} as its input. This is useful if you want to
-   * take a map-like value that you've gotten from a prior result and send it back as parameters.
-   *
-   * <p>If you are creating parameters programmatically, {@link #run(String, Map)} might be more
-   * helpful, it converts your map to a {@link Value} for you.
-   *
-   * @param query text of a Neo4j query
-   * @param parameters input parameters, should be a map Value, see {@link
-   *     Values#parameters(Object...)}.
-   * @return a reactive result.
-   */
   @Override
   public RxResult run(String query, Value parameters) {
-    return null;
+    return run(new Query(query, parameters.asMap()));
   }
 
-  /**
-   * Register running of a query and return a reactive result stream. The query is not executed when
-   * the reactive result is returned. Instead, the publishers in the result will actually start the
-   * execution of the query.
-   *
-   * <p>This method takes a set of parameters that will be injected into the query by Neo4j. Using
-   * parameters is highly encouraged, it helps avoid dangerous cypher injection attacks and improves
-   * database performance as Neo4j can re-use query plans more often.
-   *
-   * <p>This version of run takes a {@link Map} of parameters. The values in the map must be values
-   * that can be converted to Neo4j types. See {@link Values#parameters(Object...)} for a list of
-   * allowed types.
-   *
-   * @param query text of a Neo4j query
-   * @param parameters input data for the query
-   * @return a reactive result.
-   */
   @Override
   public RxResult run(String query, Map<String, Object> parameters) {
-    return null;
+    return run(new Query(query, parameters));
   }
 
-  /**
-   * Register running of a query and return a reactive result stream. The query is not executed when
-   * the reactive result is returned. Instead, the publishers in the result will actually start the
-   * execution of the query.
-   *
-   * <p>This method takes a set of parameters that will be injected into the query by Neo4j. Using
-   * parameters is highly encouraged, it helps avoid dangerous cypher injection attacks and improves
-   * database performance as Neo4j can re-use query plans more often.
-   *
-   * <p>This version of run takes a {@link Record} of parameters, which can be useful if you want to
-   * use the output of one query as input for another.
-   *
-   * @param query text of a Neo4j query
-   * @param parameters input data for the query
-   * @return a reactive result.
-   */
   @Override
   public RxResult run(String query, Record parameters) {
-    return null;
+    return run(new Query(query, parameters.asMap()));
   }
 
-  /**
-   * Register running of a query and return a reactive result stream. The query is not executed when
-   * the reactive result is returned. Instead, the publishers in the result will actually start the
-   * execution of the query.
-   *
-   * @param query text of a Neo4j query
-   * @return a reactive result.
-   */
   @Override
   public RxResult run(String query) {
-    return null;
+    return run(new Query(query));
   }
 
-  /**
-   * Register running of a query and return a reactive result stream. The query is not executed when
-   * the reactive result is returned. Instead, the publishers in the result will actually start the
-   * execution of the query.
-   *
-   * @param query a Neo4j query
-   * @return a reactive result.
-   */
   @Override
   public RxResult run(Query query) {
-    return null;
+    return run(query, TransactionConfig.empty());
   }
 
-  /**
-   * Begin a new <em>unmanaged {@linkplain RxTransaction transaction}</em>. At most one transaction
-   * may exist in a session at any point in time. To maintain multiple concurrent transactions, use
-   * multiple concurrent sessions.
-   *
-   * <p>It by default is executed in a Network IO thread, as a result no blocking operation is
-   * allowed in this thread.
-   *
-   * @return a new {@link RxTransaction}
-   */
+  @Override
+  public RxResult run(String query, TransactionConfig config) {
+    return run(new Query(query), config);
+  }
+
+  @Override
+  public RxResult run(String query, Map<String, Object> parameters, TransactionConfig config) {
+    return run(new Query(query, parameters), config);
+  }
+
   @Override
   public Publisher<RxTransaction> beginTransaction() {
-    return null;
+    return beginTransaction(TransactionConfig.empty());
+  }
+
+  @Override
+  public <T> Publisher<T> readTransaction(RxTransactionWork<? extends Publisher<T>> work) {
+    return readTransaction(work, TransactionConfig.empty());
+  }
+
+  @Override
+  public <T> Publisher<T> writeTransaction(RxTransactionWork<? extends Publisher<T>> work) {
+    return readTransaction(work);
+  }
+
+  @Override
+  public <T> Publisher<T> writeTransaction(
+      RxTransactionWork<? extends Publisher<T>> work, TransactionConfig config) {
+    return readTransaction(work, config);
+  }
+  @Override
+  public Bookmark lastBookmark() {
+    throw new UnsupportedOperationException();
   }
 
   /**
@@ -139,29 +90,6 @@ public class RxSessionImpl implements RxSession {
    */
   @Override
   public Publisher<RxTransaction> beginTransaction(TransactionConfig config) {
-    return null;
-  }
-
-  /**
-   * Execute given unit of reactive work in a {@link AccessMode#READ read} reactive transaction.
-   *
-   * <p>Transaction will automatically be committed unless given unit of work fails or {@link
-   * RxTransaction#commit() transaction commit} fails. It will also not be committed if explicitly
-   * rolled back via {@link RxTransaction#rollback()}.
-   *
-   * <p>Returned publisher and given {@link RxTransactionWork} is completed/executed by an IO thread
-   * which should never block. Otherwise IO operations on this and potentially other network
-   * connections might deadlock. Please do not chain blocking operations like {@link
-   * CompletableFuture#get()} on the returned publisher and do not use them inside the {@link
-   * RxTransactionWork}.
-   *
-   * @param work the {@link RxTransactionWork} to be applied to a new read transaction. Operation
-   *     executed by the given work must NOT include any blocking operation.
-   * @return a {@link Publisher publisher} completed with the same result as returned by the given
-   *     unit of work. publisher can be completed exceptionally if given work or commit fails.
-   */
-  @Override
-  public <T> Publisher<T> readTransaction(RxTransactionWork<? extends Publisher<T>> work) {
     return null;
   }
 
@@ -192,111 +120,6 @@ public class RxSessionImpl implements RxSession {
   }
 
   /**
-   * Execute given unit of reactive work in a {@link AccessMode#WRITE write} reactive transaction.
-   *
-   * <p>Transaction will automatically be committed unless given unit of work fails or {@link
-   * RxTransaction#commit() transaction commit} fails. It will also not be committed if explicitly
-   * rolled back via {@link RxTransaction#rollback()}.
-   *
-   * <p>Returned publisher and given {@link RxTransactionWork} is completed/executed by an IO thread
-   * which should never block. Otherwise IO operations on this and potentially other network
-   * connections might deadlock. Please do not chain blocking operations like {@link
-   * CompletableFuture#get()} on the returned publisher and do not use them inside the {@link
-   * RxTransactionWork}.
-   *
-   * @param work the {@link RxTransactionWork} to be applied to a new read transaction. Operation
-   *     executed by the given work must NOT include any blocking operation.
-   * @return a {@link Publisher publisher} completed with the same result as returned by the given
-   *     unit of work. publisher can be completed exceptionally if given work or commit fails.
-   */
-  @Override
-  public <T> Publisher<T> writeTransaction(RxTransactionWork<? extends Publisher<T>> work) {
-    return null;
-  }
-
-  /**
-   * Execute given unit of reactive work in a {@link AccessMode#WRITE write} reactive transaction
-   * with the specified {@link TransactionConfig configuration}.
-   *
-   * <p>Transaction will automatically be committed unless given unit of work fails or {@link
-   * RxTransaction#commit() transaction commit} fails. It will also not be committed if explicitly
-   * rolled back via {@link RxTransaction#rollback()}.
-   *
-   * <p>Returned publisher and given {@link RxTransactionWork} is completed/executed by an IO thread
-   * which should never block. Otherwise IO operations on this and potentially other network
-   * connections might deadlock. Please do not chain blocking operations like {@link
-   * CompletableFuture#get()} on the returned publisher and do not use them inside the {@link
-   * RxTransactionWork}.
-   *
-   * @param work the {@link RxTransactionWork} to be applied to a new read transaction. Operation
-   *     executed by the given work must NOT include any blocking operation.
-   * @param config the transaction configuration.
-   * @return a {@link Publisher publisher} completed with the same result as returned by the given
-   *     unit of work. publisher can be completed exceptionally if given work or commit fails.
-   */
-  @Override
-  public <T> Publisher<T> writeTransaction(
-      RxTransactionWork<? extends Publisher<T>> work, TransactionConfig config) {
-    return null;
-  }
-
-  /**
-   * Run a query with parameters in an auto-commit transaction with specified {@link
-   * TransactionConfig} and return a reactive result stream. The query is not executed when the
-   * reactive result is returned. Instead, the publishers in the result will actually start the
-   * execution of the query.
-   *
-   * @param query text of a Neo4j query.
-   * @param config configuration for the new transaction.
-   * @return a reactive result.
-   */
-  @Override
-  public RxResult run(String query, TransactionConfig config) {
-    return null;
-  }
-
-  /**
-   * Run a query with parameters in an auto-commit transaction with specified {@link
-   * TransactionConfig} and return a reactive result stream. The query is not executed when the
-   * reactive result is returned. Instead, the publishers in the result will actually start the
-   * execution of the query.
-   *
-   * <p>This method takes a set of parameters that will be injected into the query by Neo4j. Using
-   * parameters is highly encouraged, it helps avoid dangerous cypher injection attacks and improves
-   * database performance as Neo4j can re-use query plans more often.
-   *
-   * <p>This version of run takes a {@link Map} of parameters. The values in the map must be values
-   * that can be converted to Neo4j types. See {@link Values#parameters(Object...)} for a list of
-   * allowed types.
-   *
-   * <h2>Example</h2>
-   *
-   * <pre>{@code
-   * Map<String, Object> metadata = new HashMap<>();
-   * metadata.put("type", "update name");
-   *
-   * TransactionConfig config = TransactionConfig.builder()
-   *                 .withTimeout(Duration.ofSeconds(3))
-   *                 .withMetadata(metadata)
-   *                 .build();
-   *
-   * Map<String, Object> parameters = new HashMap<>();
-   * parameters.put("myNameParam", "Bob");
-   *
-   * RxResult result = rxSession.run("MATCH (n) WHERE n.name = $myNameParam RETURN (n)", parameters, config);
-   * }</pre>
-   *
-   * @param query text of a Neo4j query.
-   * @param parameters input data for the query.
-   * @param config configuration for the new transaction.
-   * @return a reactive result.
-   */
-  @Override
-  public RxResult run(String query, Map<String, Object> parameters, TransactionConfig config) {
-    return null;
-  }
-
-  /**
    * Run a query in an auto-commit transaction with specified {@link TransactionConfig
    * configuration} and return a reactive result stream. The query is not executed when the reactive
    * result is returned. Instead, the publishers in the result will actually start the execution of
@@ -323,18 +146,6 @@ public class RxSessionImpl implements RxSession {
    */
   @Override
   public RxResult run(Query query, TransactionConfig config) {
-    return null;
-  }
-
-  /**
-   * Return the bookmark received following the last completed query within this session. The last
-   * completed query can be run in a {@linkplain RxTransaction transaction} started using
-   * {@linkplain #beginTransaction() beginTransaction} or directly via {@link #run(Query) run}.
-   *
-   * @return a reference to a previous transaction.
-   */
-  @Override
-  public Bookmark lastBookmark() {
     return null;
   }
 
