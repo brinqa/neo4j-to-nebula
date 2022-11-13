@@ -8,7 +8,6 @@ import org.neo4j.driver.Query;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.TransactionConfig;
 import org.neo4j.driver.Value;
-import org.neo4j.driver.Values;
 import org.neo4j.driver.reactive.RxResult;
 import org.neo4j.driver.reactive.RxSession;
 import org.neo4j.driver.reactive.RxTransaction;
@@ -72,6 +71,7 @@ public class RxSessionImpl implements RxSession {
       RxTransactionWork<? extends Publisher<T>> work, TransactionConfig config) {
     return readTransaction(work, config);
   }
+
   @Override
   public Bookmark lastBookmark() {
     throw new UnsupportedOperationException();

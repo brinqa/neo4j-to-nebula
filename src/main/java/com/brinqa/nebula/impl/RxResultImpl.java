@@ -1,11 +1,9 @@
 package com.brinqa.nebula.impl;
 
 import java.util.List;
-
 import org.neo4j.driver.Record;
 import org.neo4j.driver.reactive.RxResult;
 import org.neo4j.driver.summary.ResultSummary;
-
 import org.reactivestreams.Publisher;
 
 public class RxResultImpl implements RxResult {

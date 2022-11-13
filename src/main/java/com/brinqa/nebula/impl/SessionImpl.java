@@ -1,12 +1,14 @@
 package com.brinqa.nebula.impl;
 
+import static com.vesoft.nebula.client.graph.net.Session.value2Nvalue;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import com.google.common.base.Throwables;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
-
-import com.google.common.base.Throwables;
-
+import lombok.extern.slf4j.Slf4j;
 import org.neo4j.driver.Bookmark;
 import org.neo4j.driver.Query;
 import org.neo4j.driver.Record;
@@ -17,11 +19,6 @@ import org.neo4j.driver.TransactionConfig;
 import org.neo4j.driver.TransactionWork;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.exceptions.ClientException;
-
-import lombok.extern.slf4j.Slf4j;
-
-import static com.vesoft.nebula.client.graph.net.Session.value2Nvalue;
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 @Slf4j
 public class SessionImpl implements Session {
@@ -187,13 +184,15 @@ public class SessionImpl implements Session {
         // FIXME: determine if this exception should retried
         Throwables.throwIfUnchecked(e);
         // FIXME: Convert to the proper Neo4j exception
-        throw new IllegalArgumentException(e);
+        throw new ClientException("BAD", e);
       } finally {
         this.pool.returnObject(c);
       }
     } catch (Exception e) {
-      // FIXME: determine the type of exception
-      throw new RuntimeException(e);
+      // FIXME: determine if this exception should retried
+      Throwables.throwIfUnchecked(e);
+      // FIXME: Convert to the proper Neo4j exception
+      throw new IllegalArgumentException(e);
     }
   }
 

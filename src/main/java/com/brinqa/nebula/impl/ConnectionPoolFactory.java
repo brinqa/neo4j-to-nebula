@@ -4,16 +4,17 @@ import static com.brinqa.nebula.impl.SocketFactoryUtil.newFactory;
 
 import com.brinqa.nebula.DriverConfig;
 import com.vesoft.nebula.client.graph.data.HostAddress;
-import lombok.extern.slf4j.Slf4j;
-
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import javax.net.SocketFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
-
 import org.neo4j.driver.exceptions.ServiceUnavailableException;
 
 /**
@@ -26,6 +27,13 @@ public class ConnectionPoolFactory extends BasePooledObjectFactory<Connection> {
   private final DriverConfig driverConfig;
   private final SocketFactory socketFactory;
   private final AtomicInteger roundRobinIdx = new AtomicInteger();
+
+  /**
+   * Session IDs are persistent, limited, and can survive for 8hrs or more so its important to
+   * re-use them, make sure any connection to a Graph Service maintains the same session ID and
+   * knows how to refresh it.
+   */
+  private final Map<SessionIdentifier, SessionData> identifier2Data = new HashMap<>();
 
   public ConnectionPoolFactory(DriverConfig driverConfig) {
     this.socketFactory =
@@ -46,19 +54,30 @@ public class ConnectionPoolFactory extends BasePooledObjectFactory<Connection> {
    */
   @Override
   public Connection create() throws Exception {
-    HostAddress address = null;
     Exception lastException = null;
     // try everyone at least twice
-    int tries = driverConfig.getAddresses().size() * 2;
+    final var timeout = driverConfig.getTimeout();
+    final int tries = driverConfig.getAddresses().size() * 2;
     for (int i = 0; i < tries; i++) {
+      // rotate through addresses
+      final var identifier =
+          SessionIdentifier.builder()
+              .hostAddress(hostAddress())
+              .username(driverConfig.getUsername())
+              .password(driverConfig.getPassword())
+              .build();
       try {
-        address = hostAddress();
-        final var timeout = driverConfig.getTimeout();
-        final var username = driverConfig.getUsername();
-        final var password = driverConfig.getPassword();
-        return new Connection(address, username, password, timeout, socketFactory);
+        synchronized (this) {
+          // check if there's existing data
+          final var data = this.identifier2Data.get(identifier);
+          final var c = new Connection(data, identifier, timeout, socketFactory);
+          // save off the session data
+          this.identifier2Data.put(identifier, c.getSessionData().incrementRef());
+          return c;
+        }
       } catch (Exception ex) {
-        log.warn("Unable to connect to host address {}", address, ex);
+        // TODO: check for any exceptions that would invalidate the session data
+        log.warn("Unable to connect to host address {}", identifier.getHostAddress(), ex);
         lastException = ex;
       }
     }
@@ -73,7 +92,33 @@ public class ConnectionPoolFactory extends BasePooledObjectFactory<Connection> {
    */
   @Override
   public void destroyObject(PooledObject<Connection> p) throws Exception {
-    p.getObject().close();
+    final var connection = p.getObject();
+    final var sessionIdentifier = connection.getSessionIdentifier();
+    synchronized (this) {
+      final var sessionData = this.identifier2Data.get(sessionIdentifier).decrementRef();
+      try {
+        // replace session data
+        if (0 != sessionData.getReferenceCount()) {
+          // simply replace, there's more connections associated with this identifier
+          this.identifier2Data.put(sessionIdentifier, sessionData);
+        } else {
+          // all connections are closed, expire the session
+          try {
+            connection.expireSession();
+          } catch (Exception ex) {
+            log.error("Unable to expire session.", ex);
+          } finally {
+            this.identifier2Data.remove(sessionIdentifier);
+          }
+        }
+      } finally {
+        try {
+          connection.close();
+        } catch (IOException ioe) {
+          log.error("Failure during closure of a connection.", ioe);
+        }
+      }
+    }
   }
 
   /**

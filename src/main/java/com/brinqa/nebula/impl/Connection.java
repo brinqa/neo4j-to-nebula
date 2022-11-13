@@ -17,51 +17,61 @@ import com.vesoft.nebula.graph.VerifyClientVersionReq;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.net.SocketFactory;
 import lombok.Getter;
 import org.neo4j.driver.exceptions.ClientException;
 
 public class Connection implements Closeable {
+  public static long NO_SESSION = -1L;
 
   private final Client client;
   private final TSocket transport;
-  @Getter private final long sessionId;
-  @Getter private final int timezoneOffset;
-  @Getter private final HostAddress address;
+  @Getter private final SessionData sessionData;
+  @Getter private final SessionIdentifier sessionIdentifier;
 
   private final AtomicReference<String> currentSpace = new AtomicReference<>();
 
   public Connection(
-      final HostAddress address,
-      final String username,
-      final String password,
+      final SessionData data,
+      final SessionIdentifier identifier,
       final int timeout,
       final SocketFactory socketFactory) {
     try {
-      this.address = address;
-
+      this.sessionIdentifier = identifier;
+      final var address = identifier.getHostAddress();
       final int tm = timeout <= 0 ? Integer.MAX_VALUE : timeout;
       final var socket = socketFactory.createSocket(address.getHost(), address.getPort());
       this.transport = new TSocket(socket, tm, tm);
       this.client = new GraphService.Client(new TCompactProtocol(transport));
 
-      // check if client version matches server version
-      final var resp = client.verifyClientVersion(new VerifyClientVersionReq());
-      if (resp.error_code != ErrorCode.SUCCEEDED) {
-        client.getInputProtocol().getTransport().close();
-        throw new ClientException(new String(resp.getError_msg(), UTF_8));
-      }
-
       // authenticate the connection to the server
-      final var authResult = authenticate(username, password);
-      this.sessionId = authResult.getSessionId();
-      this.timezoneOffset = authResult.getTimezoneOffset();
+      if (null != data) {
+        this.sessionData = data;
+      } else {
+        // check if client version matches server version
+        final var resp = client.verifyClientVersion(new VerifyClientVersionReq());
+        if (resp.error_code != ErrorCode.SUCCEEDED) {
+          client.getInputProtocol().getTransport().close();
+          throw new ClientException(new String(resp.getError_msg(), UTF_8));
+        }
+
+        final var username = identifier.getUsername();
+        final var password = identifier.getPassword();
+        final var authResult = authenticate(username, password);
+        final var sessionId = authResult.getSessionId();
+        final var timezoneOffset = authResult.getTimezoneOffset();
+        this.sessionData =
+            SessionData.builder().sessionId(sessionId).timezoneOffset(timezoneOffset).build();
+      }
 
     } catch (AuthFailedException | IOException e) {
       throw new ClientException("Unable to connect to Graph server.", e);
     }
+  }
+
+  public HostAddress getAddress() {
+    return this.sessionIdentifier.getHostAddress();
   }
 
   public boolean isOpen() {
@@ -70,8 +80,9 @@ public class Connection implements Closeable {
 
   /** Clients are not thread safe. */
   public synchronized ResultSet execute(String stmt, Map<byte[], Value> parameterMap) {
+    final var sessionId = this.sessionData.getSessionId();
     final var resp = client.executeWithParameter(sessionId, stmt.getBytes(UTF_8), parameterMap);
-    return new ResultSet(resp, getTimezoneOffset());
+    return new ResultSet(resp, this.sessionData.getTimezoneOffset());
   }
 
   private AuthResult authenticate(String user, final String password) throws AuthFailedException {
@@ -93,24 +104,14 @@ public class Connection implements Closeable {
     }
   }
 
-  /**
-   * Closes this stream and releases any system resources associated with it. If the stream is
-   * already closed then invoking this method has no effect.
-   *
-   * <p>As noted in {@link AutoCloseable#close()}, cases where the close may fail require careful
-   * attention. It is strongly advised to relinquish the underlying resources and to internally
-   * <em>mark</em> the {@code Closeable} as closed, prior to throwing the {@code IOException}.
-   *
-   * @throws IOException if an I/O error occurs
-   */
+  public void expireSession() {
+    // attempt to sign out the session first
+    this.client.signout(this.sessionData.getSessionId());
+  }
+
   @Override
   public void close() throws IOException {
-    try {
-      // attempt to sign out the session first
-      this.client.signout(this.sessionId);
-    } finally {
-      this.transport.close();
-    }
+    this.transport.close();
   }
 
   public synchronized boolean updateCurrentSpace(String space) {
@@ -126,11 +127,11 @@ public class Connection implements Closeable {
       return false;
     }
     Connection that = (Connection) o;
-    return getSessionId() == that.getSessionId();
+    return this.sessionData.equals(that.sessionData);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(getSessionId());
+    return this.sessionData.hashCode();
   }
 }
