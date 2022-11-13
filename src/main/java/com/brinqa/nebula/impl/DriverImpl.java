@@ -262,7 +262,7 @@ public class DriverImpl implements Driver {
     // create new session
     try {
       final var spaceName = config.database().orElse(driverConfig.getSpaceName());
-      return new SessionImpl(this.driverConfig, this.pool, spaceName);
+      return new SessionImpl(this.pool, spaceName);
     } catch (Exception e) {
       throw new RuntimeException("Get session failed: " + e.getMessage());
     }

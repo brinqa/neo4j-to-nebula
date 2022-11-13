@@ -4,6 +4,8 @@ import static com.brinqa.nebula.impl.SocketFactoryUtil.newFactory;
 
 import com.brinqa.nebula.DriverConfig;
 import com.vesoft.nebula.client.graph.data.HostAddress;
+import lombok.extern.slf4j.Slf4j;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -12,10 +14,13 @@ import org.apache.commons.pool2.BasePooledObjectFactory;
 import org.apache.commons.pool2.PooledObject;
 import org.apache.commons.pool2.impl.DefaultPooledObject;
 
+import org.neo4j.driver.exceptions.ServiceUnavailableException;
+
 /**
  * The Nebula Session ID is per connection because of auth and this connection is not thread-safe
  * because the client is not thread safe. For efficiency the connection/client must be pooled.
  */
+@Slf4j
 public class ConnectionPoolFactory extends BasePooledObjectFactory<Connection> {
 
   private final DriverConfig driverConfig;
@@ -41,11 +46,23 @@ public class ConnectionPoolFactory extends BasePooledObjectFactory<Connection> {
    */
   @Override
   public Connection create() throws Exception {
-    final var address = hostAddress();
-    final var timeout = driverConfig.getTimeout();
-    final var username = driverConfig.getUsername();
-    final var password = driverConfig.getPassword();
-    return new Connection(address, username, password, timeout, socketFactory);
+    HostAddress address = null;
+    Exception lastException = null;
+    // try everyone at least twice
+    int tries = driverConfig.getAddresses().size() * 2;
+    for (int i = 0; i < tries; i++) {
+      try {
+        address = hostAddress();
+        final var timeout = driverConfig.getTimeout();
+        final var username = driverConfig.getUsername();
+        final var password = driverConfig.getPassword();
+        return new Connection(address, username, password, timeout, socketFactory);
+      } catch (Exception ex) {
+        log.warn("Unable to connect to host address {}", address, ex);
+        lastException = ex;
+      }
+    }
+    throw new ServiceUnavailableException("Unable to find a usable address.", lastException);
   }
 
   /**

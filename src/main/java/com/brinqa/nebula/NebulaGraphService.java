@@ -9,10 +9,10 @@ import org.neo4j.driver.exceptions.ClientException;
 public class NebulaGraphService {
 
   /**
-   * Based on the configuration provided create a driver to manage a connection to the Nebula
+   * Based on the configuration provided create a driver to manage a connection pool to the Nebula
    * cluster.
    *
-   * @param config contains all the configuration required to connect and manage space within the
+   * @param config contains all the configuration required to connect and manage a space within the
    *     Nebula cluster.
    * @return driver instance of the configuration is valid.
    */
