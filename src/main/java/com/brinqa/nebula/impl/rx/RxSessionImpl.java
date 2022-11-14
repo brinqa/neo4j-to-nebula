@@ -1,10 +1,7 @@
 package com.brinqa.nebula.impl.rx;
 
-import com.brinqa.nebula.DriverConfig;
-import com.brinqa.nebula.impl.SessionImpl;
-import io.reactivex.Flowable;
 import java.util.Map;
-import lombok.AllArgsConstructor;
+
 import org.neo4j.driver.Bookmark;
 import org.neo4j.driver.Query;
 import org.neo4j.driver.Record;
@@ -14,11 +11,16 @@ import org.neo4j.driver.reactive.RxResult;
 import org.neo4j.driver.reactive.RxSession;
 import org.neo4j.driver.reactive.RxTransaction;
 import org.neo4j.driver.reactive.RxTransactionWork;
+
+import io.reactivex.Flowable;
+
+import com.brinqa.nebula.impl.SessionImpl;
+
+import lombok.AllArgsConstructor;
 import org.reactivestreams.Publisher;
 
 @AllArgsConstructor
 public class RxSessionImpl implements RxSession {
-  private final DriverConfig driverConfig;
   private final SessionImpl session;
 
   @Override
@@ -93,7 +95,7 @@ public class RxSessionImpl implements RxSession {
   @Override
   public <T> Publisher<T> readTransaction(
       RxTransactionWork<? extends Publisher<T>> work, TransactionConfig config) {
-    return null;
+    return Flowable.defer(() -> work.execute(new RxTransactionImpl(this, config)));
   }
 
   @Override
@@ -104,6 +106,6 @@ public class RxSessionImpl implements RxSession {
 
   @Override
   public <T> Publisher<T> close() {
-    return null;
+    return Flowable.empty();
   }
 }

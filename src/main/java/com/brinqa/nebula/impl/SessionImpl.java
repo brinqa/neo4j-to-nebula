@@ -146,6 +146,7 @@ public class SessionImpl implements Session {
    * @return
    */
   public ResultImpl executeQuery(Query query, TransactionConfig config) {
+    // FIXME: use the config timeout, use resilience4j for timeout
     return withConnection(
         connection -> {
           final long now = System.nanoTime();

@@ -39,11 +39,11 @@ public class DriverConfig {
   /**
    * @return username to authenticate with.
    */
-  @Default String username = "root";
+  @NonNull @Default String username = "root";
   /**
    * @return password to authenticate with.
    */
-  @Default String password = "nebula";
+  @NonNull @Default String password = "nebula";
 
   @Default int maxRetries = 20;
 
