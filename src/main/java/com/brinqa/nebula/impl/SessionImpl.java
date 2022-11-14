@@ -133,7 +133,7 @@ public class SessionImpl implements Session {
   }
 
   /**
-   * Execute a query on the first available Graph Service connection from the pool. Attempt to try
+   * Execute a query on the first available Graph Service connection from the pool. Attempt to retry
    * for various transient issues.
    *
    * <ul>
@@ -145,7 +145,7 @@ public class SessionImpl implements Session {
    * @param config
    * @return
    */
-  ResultImpl executeQuery(Query query, TransactionConfig config) {
+  public ResultImpl executeQuery(Query query, TransactionConfig config) {
     return withConnection(
         connection -> {
           final long now = System.nanoTime();
@@ -197,9 +197,16 @@ public class SessionImpl implements Session {
   }
 
   Map<byte[], com.vesoft.nebula.Value> toNebulaParameters(Query query) {
-    final var parameterMap = query.parameters().asMap();
-    final Map<byte[], com.vesoft.nebula.Value> map = new HashMap<>();
-    parameterMap.forEach((key, value) -> map.put(key.getBytes(UTF_8), value2Nvalue(value)));
+    final var map = new HashMap<byte[], com.vesoft.nebula.Value>();
+    query
+        .parameters()
+        .asMap()
+        .forEach(
+            (key, value) -> {
+              final var k = key.getBytes(UTF_8);
+              final var v = value2Nvalue(value);
+              map.put(k, v);
+            });
     return map;
   }
 }

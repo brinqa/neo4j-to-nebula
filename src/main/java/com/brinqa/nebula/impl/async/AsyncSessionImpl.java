@@ -1,5 +1,8 @@
-package com.brinqa.nebula.impl;
+package com.brinqa.nebula.impl.async;
 
+import com.brinqa.nebula.DriverConfig;
+import com.brinqa.nebula.impl.ResultCursorImpl;
+import com.brinqa.nebula.impl.SessionImpl;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -18,6 +21,7 @@ import org.neo4j.driver.async.ResultCursor;
 @AllArgsConstructor
 public class AsyncSessionImpl implements AsyncSession {
 
+  private final DriverConfig driverConfig;
   private final SessionImpl session;
 
   @Override
@@ -85,11 +89,6 @@ public class AsyncSessionImpl implements AsyncSession {
   }
 
   @Override
-  public CompletionStage<Void> closeAsync() {
-    return CompletableFuture.completedFuture(null);
-  }
-
-  @Override
   public CompletionStage<AsyncTransaction> beginTransactionAsync(TransactionConfig config) {
     return CompletableFuture.completedFuture(new AsyncTransactionImpl(this, config));
   }
@@ -105,7 +104,18 @@ public class AsyncSessionImpl implements AsyncSession {
   // =========================================================================
 
   @Override
+  public CompletionStage<Void> closeAsync() {
+    return CompletableFuture.supplyAsync(
+        () -> {
+          session.close();
+          return null;
+        });
+  }
+
+  @Override
   public CompletionStage<ResultCursor> runAsync(Query query, TransactionConfig config) {
+    // FIXME: Use driver configuration to create a separate thread pool
+    // FIXME: Use resilence4j bulk head and timeout for this
     return CompletableFuture.supplyAsync(
         () -> {
           final Result result = session.run(query, config);

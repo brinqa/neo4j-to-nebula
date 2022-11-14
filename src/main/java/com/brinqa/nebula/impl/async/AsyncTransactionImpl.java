@@ -1,4 +1,4 @@
-package com.brinqa.nebula.impl;
+package com.brinqa.nebula.impl.async;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -16,11 +16,6 @@ public class AsyncTransactionImpl implements AsyncTransaction {
 
   private final AsyncSessionImpl asyncSession;
   private final TransactionConfig transactionConfig;
-
-  @Override
-  public CompletionStage<ResultCursor> runAsync(Query query) {
-    return asyncSession.runAsync(query, transactionConfig);
-  }
 
   @Override
   public CompletionStage<ResultCursor> runAsync(String query, Value parameters) {
@@ -55,5 +50,13 @@ public class AsyncTransactionImpl implements AsyncTransaction {
   @Override
   public CompletionStage<Void> closeAsync() {
     return CompletableFuture.completedFuture(null);
+  }
+
+  // =========================================================================
+  // Implementation
+  // =========================================================================
+  @Override
+  public CompletionStage<ResultCursor> runAsync(Query query) {
+    return asyncSession.runAsync(query, transactionConfig);
   }
 }

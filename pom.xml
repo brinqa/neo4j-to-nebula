@@ -19,6 +19,7 @@
     <properties>
         <project.build.targetJdk>11</project.build.targetJdk>
 
+        <rxjava.version>2.2.21</rxjava.version>
         <lombok.version>1.18.24</lombok.version>
         <resilience4j.version>1.7.1</resilience4j.version>
         <neo4j.driver.version>4.4.9</neo4j.driver.version>
@@ -107,6 +108,11 @@
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-retry</artifactId>
             <version>${resilience4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.reactivex.rxjava2</groupId>
+            <artifactId>rxjava</artifactId>
+            <version>${rxjava.version}</version>
         </dependency>
     </dependencies>
 

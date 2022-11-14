@@ -1,6 +1,8 @@
 package com.brinqa.nebula.impl;
 
 import com.brinqa.nebula.DriverConfig;
+import com.brinqa.nebula.impl.async.AsyncSessionImpl;
+import com.brinqa.nebula.impl.rx.RxSessionImpl;
 import com.google.common.base.Throwables;
 import java.net.UnknownHostException;
 import java.util.concurrent.CompletableFuture;
@@ -89,7 +91,7 @@ public class DriverImpl implements Driver {
    */
   @Override
   public RxSession rxSession(SessionConfig sessionConfig) {
-    return new RxSessionImpl();
+    return new RxSessionImpl(driverConfig, newSession(sessionConfig));
   }
 
   /**
@@ -117,7 +119,7 @@ public class DriverImpl implements Driver {
    */
   @Override
   public AsyncSession asyncSession(SessionConfig sessionConfig) {
-    throw new UnsupportedOperationException();
+    return new AsyncSessionImpl(driverConfig, newSession(sessionConfig));
   }
 
   /**
@@ -150,8 +152,7 @@ public class DriverImpl implements Driver {
   }
 
   /**
-   * Returns the driver metrics if metrics reporting is enabled via {@link
-   * Config.ConfigBuilder#withDriverMetrics()}. Otherwise, a {@link ClientException} will be thrown.
+   * Returns the driver metrics if metrics reporting is enabled.
    *
    * @return the driver metrics if enabled.
    * @throws ClientException if the driver metrics reporting is not enabled.
@@ -162,8 +163,7 @@ public class DriverImpl implements Driver {
   }
 
   /**
-   * Returns true if the driver metrics reporting is enabled via {@link
-   * Config.ConfigBuilder#withDriverMetrics()}, otherwise false.
+   * Returns true if the driver metrics reporting is enabled.
    *
    * @return true if the metrics reporting is enabled.
    */
