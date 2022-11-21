@@ -52,10 +52,10 @@ public class BasicCypherTest {
         "CREATE SPACE %s(partition_num=10, replica_factor=1, vid_type=INT64);";
     // final var CREATE_TAG_FORMAT = "CREATE TAG Host;";
     final String CREATE_TAG_FORMAT =
-        "CREATE TAG IF NOT EXISTS Host(name string, ipAddress string);";
+        "USE %s; CREATE TAG IF NOT EXISTS Host(name string, ipAddress string);";
     final var createSpace = String.format(CREATE_FORMAT, cfg.getSpaceName());
-    final var createTag = String.format(CREATE_TAG_FORMAT);
-    final var dropSpace = String.format("DROP SPACE IF EXISTS %s", SPACE_NAME);
+    final var createTag = String.format(CREATE_TAG_FORMAT, cfg.getSpaceName());
+    final var dropSpace = String.format("DROP SPACE IF EXISTS %s;", SPACE_NAME);
 
     final var pool = new NebulaPool();
     final var poolCfg = new NebulaPoolConfig();
@@ -84,7 +84,7 @@ public class BasicCypherTest {
         driver -> {
           try (Session session = driver.session()) {
             // final String CREATE_TAG = "CREATE TAG Host (`name` string, `ipAddress` string);";
-            final var r = session.run("MATCH (n:Host) RETURN n LIMIT 1");
+            final var r = session.run("MATCH (n:Host) RETURN n LIMIT 1;");
             // final var r = session.run("SHOW HOSTS;");
             System.out.println(r);
             Assert.assertTrue(r.list().isEmpty());
