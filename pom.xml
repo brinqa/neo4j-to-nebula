@@ -16,6 +16,19 @@
 
     <name>neo4j-to-nebula</name>
 
+    <licenses>
+        <license>
+            <name>The Apache Software License, Version 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <comments>
+                Note that this license is for the project itself,
+                and not for its dependencies. See the included NOTICE.txt
+                file for further details.
+            </comments>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
     <properties>
         <project.build.targetJdk>11</project.build.targetJdk>
 
@@ -139,6 +152,23 @@
                             <version>1.15.0</version>
                         </googleJavaFormat>
                     </java>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.mycila</groupId>
+                <artifactId>license-maven-plugin</artifactId>
+                <version>4.1</version>
+                <configuration>
+                    <skip>true</skip>
+                    <skipExistingHeaders>true</skipExistingHeaders>
+                    <licenseSets>
+                        <licenseSet>
+                            <header>license_header.txt</header>
+                            <includes>
+                                <include>src/**</include>
+                            </includes>
+                        </licenseSet>
+                    </licenseSets>
                 </configuration>
             </plugin>
         </plugins>
