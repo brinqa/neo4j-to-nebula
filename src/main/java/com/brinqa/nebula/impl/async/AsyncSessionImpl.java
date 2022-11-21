@@ -1,3 +1,18 @@
+/*
+ * Copyright 2002 Brinqa, Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.brinqa.nebula.impl.async;
 
 import com.brinqa.nebula.DriverConfig;
@@ -114,8 +129,8 @@ public class AsyncSessionImpl implements AsyncSession {
 
   @Override
   public CompletionStage<ResultCursor> runAsync(Query query, TransactionConfig config) {
-    // FIXME: Use driver configuration to create a separate thread pool
-    // FIXME: Use resilence4j bulk head and timeout for this
+    // FIXME: create an exception so its easier to track the stack trace
+    // so if this does fail it can be set for the return
     return CompletableFuture.supplyAsync(
         () -> {
           final Result result = session.run(query, config);
