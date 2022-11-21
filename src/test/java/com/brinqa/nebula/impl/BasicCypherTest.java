@@ -8,24 +8,23 @@ import com.vesoft.nebula.client.graph.exception.ClientServerIncompatibleExceptio
 import com.vesoft.nebula.client.graph.exception.IOErrorException;
 import com.vesoft.nebula.client.graph.exception.NotValidConnectionException;
 import com.vesoft.nebula.client.graph.net.NebulaPool;
-import java.io.File;
 import java.net.UnknownHostException;
 import java.util.function.Function;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.ClassRule;
 import org.junit.Test;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Session;
-import org.testcontainers.containers.DockerComposeContainer;
 
+@Slf4j
 public class BasicCypherTest {
   private static final String SPACE_NAME = "test_space";
 
-  @ClassRule
-  public static DockerComposeContainer environment =
-      new DockerComposeContainer(new File("docker/docker-compose.yml"))
-          .withExposedService("graphd_1", 9669);
+  // @ClassRule
+  // public static DockerComposeContainer environment =
+  //    new DockerComposeContainer(new File("docker/docker-compose.yml"))
+  //        .withExposedService("graphd_1", 9669);
 
   /** Setup the space for testing. */
   @BeforeClass
@@ -33,24 +32,30 @@ public class BasicCypherTest {
       throws UnknownHostException, IOErrorException, AuthFailedException,
           ClientServerIncompatibleException, NotValidConnectionException, InterruptedException {
     final var cfg = DriverConfig.defaultConfig(SPACE_NAME);
+    log.info("DriverConfig: {}", cfg);
     final var CREATE_FORMAT =
         "CREATE SPACE %s(partition_num=10, replica_factor=1, vid_type=INT64);";
+    final var CREATE_TAG_FORMAT = "CREATE TAG TEST_001;";
     final var createSpace = String.format(CREATE_FORMAT, cfg.getSpaceName());
+    final var createTag = String.format(CREATE_TAG_FORMAT);
     final var dropSpace = String.format("DROP SPACE IF EXISTS %s", SPACE_NAME);
 
     final var pool = new NebulaPool();
     final var poolCfg = new NebulaPoolConfig();
     pool.init(cfg.getAddresses(), poolCfg);
-    final var session = pool.getSession(cfg.getUsername(), cfg.getPassword(), true);
+    // final var session = pool.getSession(cfg.getUsername(), cfg.getPassword(), true);
+    final var session = pool.getSession("root", "nebula", false);
     session.execute(dropSpace);
     Thread.sleep(10_000);
     session.execute(createSpace);
+    session.execute(createTag);
     session.release();
   }
 
   <T> T withDriver(Function<Driver, T> fx) {
     final DriverConfig cfg = DriverConfig.defaultConfig(SPACE_NAME);
     try (Driver driver = NebulaGraphService.newDriver(cfg)) {
+      System.out.println(driver);
       return fx.apply(driver);
     }
   }
@@ -61,6 +66,8 @@ public class BasicCypherTest {
         driver -> {
           try (Session session = driver.session()) {
             final var r = session.run("MATCH (n:Host) RETURN n LIMIT 1");
+            // final var r = session.run("SHOW HOSTS;");
+            System.out.println(r);
             Assert.assertTrue(r.list().isEmpty());
             return null;
           }
