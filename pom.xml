@@ -144,31 +144,19 @@
                     </execution>
                 </executions>
                 <configuration>
-                    <!-- define a language-specific format -->
                     <java>
                         <importOrder/>
                         <removeUnusedImports/>
                         <googleJavaFormat>
                             <version>1.15.0</version>
                         </googleJavaFormat>
+                        <licenseHeader>
+                            <file>${project.basedir}/license_header.txt</file>
+                        </licenseHeader>
+                        <includes>
+                            <include>src/main/java/com/**/*.java</include>
+                        </includes>
                     </java>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>com.mycila</groupId>
-                <artifactId>license-maven-plugin</artifactId>
-                <version>4.1</version>
-                <configuration>
-                    <skip>true</skip>
-                    <skipExistingHeaders>true</skipExistingHeaders>
-                    <licenseSets>
-                        <licenseSet>
-                            <header>license_header.txt</header>
-                            <includes>
-                                <include>src/**</include>
-                            </includes>
-                        </licenseSet>
-                    </licenseSets>
                 </configuration>
             </plugin>
         </plugins>
