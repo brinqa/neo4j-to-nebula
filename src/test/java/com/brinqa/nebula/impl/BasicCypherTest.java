@@ -54,7 +54,7 @@ public class BasicCypherTest {
     final String CREATE_TAG_FORMAT =
         "USE %s; CREATE TAG IF NOT EXISTS Host(name string, ipAddress string);";
     final var createSpace = String.format(CREATE_FORMAT, cfg.getSpaceName());
-    final var createTag = String.format(CREATE_TAG_FORMAT, cfg.getSpaceName());
+    final var createTag = String.format(CREATE_TAG_FORMAT, SPACE_NAME);
     final var dropSpace = String.format("DROP SPACE IF EXISTS %s;", SPACE_NAME);
 
     final var pool = new NebulaPool();
@@ -84,9 +84,9 @@ public class BasicCypherTest {
         driver -> {
           try (Session session = driver.session()) {
             // final String CREATE_TAG = "CREATE TAG Host (`name` string, `ipAddress` string);";
-            final var r = session.run("MATCH (n:Host) RETURN n LIMIT 1;");
-            // final var r = session.run("SHOW HOSTS;");
-            System.out.println(r);
+            final var r = session.run("USE test_space; MATCH (n:Host) RETURN n LIMIT 1;");
+            //final var r = session.run("SHOW HOSTS;");
+            // System.out.println(r);
             Assert.assertTrue(r.list().isEmpty());
             return null;
           }
@@ -96,6 +96,7 @@ public class BasicCypherTest {
   /** Simple insert with simple read. */
   @Test
   public void testReadObjects() throws InterruptedException {
+    // tag creation
     withDriver(
         driver -> {
           // create a schema tag
@@ -110,7 +111,25 @@ public class BasicCypherTest {
           return null;
         });
 
-    // wait for it to make it
+    // wait for it to make the tag
+    Thread.sleep(10_000);
+
+    // edge creation
+    withDriver(
+            driver -> {
+              // create a schema tag
+              final String CREATE_EDGE =
+                      "CREATE EDGE like (likeness double);";
+              try (Session session = driver.session()) {
+                final var r = session.run(CREATE_EDGE);
+                final var l = r.list();
+                Assert.assertTrue(l.isEmpty());
+                Assert.assertNotNull(r.consume());
+              }
+              return null;
+            });
+
+    // wait for it to make the edge
     Thread.sleep(10_000);
 
     withDriver(
@@ -129,5 +148,35 @@ public class BasicCypherTest {
 
           return null;
         });
+
+    withDriver(
+            driver -> {
+              // insert some records and read them back
+              try (Session session = driver.session()) {
+                final String INSERT_NODE_FMT = "INSERT VERTEX Host (%s) VALUES %d:(%s), %d:(%s), %d:(%s)";
+                final var names = String.join(",", "name", "ipAddress");
+                final var value1 = String.join(",", "\"nodeX\"", "\"192.168.1.1\"");
+                final var value2 = String.join(",", "\"nodeY\"", "\"192.169.1.1\"");
+                final var value3 = String.join(",", "\"nodeZ\"", "\"192.170.1.1\"");
+                final var add_nodes_query = String.format(INSERT_NODE_FMT, names, 1L, value1, 2L, value2, 3L, value3);
+                final var add_nodes_result = session.run(add_nodes_query);
+                final var seek_node_query = "FETCH PROP ON Host 3 YIELD vertex as node;";
+                final var seek_node_result = session.run(seek_node_query);
+                final var seek_node_list = seek_node_result.list();
+                Assert.assertFalse(seek_node_list.isEmpty());
+                Assert.assertNotNull(seek_node_result.consume());
+                final String INSERT_EDGE_FMT = "INSERT EDGE like(likeness) VALUES %d->%d:(%.1f), %d->%d:(%.1f);";
+                final var add_edges_query = String.format(INSERT_EDGE_FMT, 1L, 2L, 70.0, 1L, 3L, 90.0);
+                final var add_edges_result = session.run(add_edges_query);
+                final var seek_edge_query = "FETCH PROP ON like 1->2 YIELD edge as e;";
+                final var seek_edge_result = session.run(seek_edge_query);
+                final var seek_edge_list = seek_edge_result.list();
+                Assert.assertFalse(seek_edge_list.isEmpty());
+                Assert.assertNotNull(seek_edge_result.consume());
+              }
+
+              return null;
+            });
+
   }
 }
