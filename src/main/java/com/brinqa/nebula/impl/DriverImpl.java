@@ -1,5 +1,5 @@
 /*
- * Copyright 2002 Brinqa, Inc. All rights reserved.
+ * Copyright 2022 Brinqa, Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,11 +18,9 @@ package com.brinqa.nebula.impl;
 import com.brinqa.nebula.DriverConfig;
 import com.brinqa.nebula.impl.async.AsyncSessionImpl;
 import com.brinqa.nebula.impl.rx.RxSessionImpl;
-import com.google.common.base.Throwables;
 import java.net.UnknownHostException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ExecutionException;
 import lombok.extern.slf4j.Slf4j;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Metrics;
@@ -106,7 +104,7 @@ public class DriverImpl implements Driver {
    */
   @Override
   public RxSession rxSession(SessionConfig sessionConfig) {
-    return new RxSessionImpl(driverConfig, newSession(sessionConfig));
+    return new RxSessionImpl(newSession(sessionConfig));
   }
 
   /**
@@ -209,11 +207,8 @@ public class DriverImpl implements Driver {
    */
   @Override
   public void verifyConnectivity() {
-    try {
-      verifyConnectivityAsync().toCompletableFuture().get();
-    } catch (InterruptedException | ExecutionException e) {
-      Throwables.throwIfUnchecked(e);
-      throw new IllegalStateException(Throwables.getRootCause(e));
+    try (final var session = newSession(SessionConfig.defaultConfig())) {
+      session.ping();
     }
   }
 
@@ -235,9 +230,7 @@ public class DriverImpl implements Driver {
   public CompletionStage<Void> verifyConnectivityAsync() {
     return CompletableFuture.supplyAsync(
         () -> {
-          try (final var session = newSession(SessionConfig.defaultConfig())) {
-            session.ping();
-          }
+          verifyConnectivity();
           return null;
         });
   }

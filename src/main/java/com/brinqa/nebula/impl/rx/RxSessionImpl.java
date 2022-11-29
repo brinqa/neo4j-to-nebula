@@ -1,5 +1,5 @@
 /*
- * Copyright 2002 Brinqa, Inc. All rights reserved.
+ * Copyright 2022 Brinqa, Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,8 +15,10 @@
  */
 package com.brinqa.nebula.impl.rx;
 
+import com.brinqa.nebula.impl.SessionImpl;
+import io.reactivex.Flowable;
 import java.util.Map;
-
+import lombok.AllArgsConstructor;
 import org.neo4j.driver.Bookmark;
 import org.neo4j.driver.Query;
 import org.neo4j.driver.Record;
@@ -26,12 +28,6 @@ import org.neo4j.driver.reactive.RxResult;
 import org.neo4j.driver.reactive.RxSession;
 import org.neo4j.driver.reactive.RxTransaction;
 import org.neo4j.driver.reactive.RxTransactionWork;
-
-import io.reactivex.Flowable;
-
-import com.brinqa.nebula.impl.SessionImpl;
-
-import lombok.AllArgsConstructor;
 import org.reactivestreams.Publisher;
 
 @AllArgsConstructor
@@ -121,6 +117,10 @@ public class RxSessionImpl implements RxSession {
 
   @Override
   public <T> Publisher<T> close() {
-    return Flowable.empty();
+    return Flowable.defer(
+        () -> {
+          session.close();
+          return Flowable.empty();
+        });
   }
 }
