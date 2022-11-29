@@ -18,6 +18,8 @@ package com.brinqa.nebula.impl.rx;
 import com.brinqa.nebula.impl.SessionImpl;
 import io.reactivex.Flowable;
 import java.util.Map;
+import java.util.concurrent.Callable;
+
 import lombok.AllArgsConstructor;
 import org.neo4j.driver.Bookmark;
 import org.neo4j.driver.Query;
@@ -117,6 +119,9 @@ public class RxSessionImpl implements RxSession {
 
   @Override
   public <T> Publisher<T> close() {
-    return Flowable.empty();
+    return Flowable.defer(() -> {
+      session.close();
+      return Flowable.empty();
+    });
   }
 }

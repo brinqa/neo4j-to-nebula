@@ -106,7 +106,7 @@ public class DriverImpl implements Driver {
    */
   @Override
   public RxSession rxSession(SessionConfig sessionConfig) {
-    return new RxSessionImpl(driverConfig, newSession(sessionConfig));
+    return new RxSessionImpl(newSession(sessionConfig));
   }
 
   /**
@@ -209,11 +209,8 @@ public class DriverImpl implements Driver {
    */
   @Override
   public void verifyConnectivity() {
-    try {
-      verifyConnectivityAsync().toCompletableFuture().get();
-    } catch (InterruptedException | ExecutionException e) {
-      Throwables.throwIfUnchecked(e);
-      throw new IllegalStateException(Throwables.getRootCause(e));
+    try (final var session = newSession(SessionConfig.defaultConfig())) {
+      session.ping();
     }
   }
 
@@ -235,9 +232,7 @@ public class DriverImpl implements Driver {
   public CompletionStage<Void> verifyConnectivityAsync() {
     return CompletableFuture.supplyAsync(
         () -> {
-          try (final var session = newSession(SessionConfig.defaultConfig())) {
-            session.ping();
-          }
+          verifyConnectivity();
           return null;
         });
   }
