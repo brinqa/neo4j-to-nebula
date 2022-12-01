@@ -23,6 +23,7 @@ import com.vesoft.nebula.client.graph.exception.ClientServerIncompatibleExceptio
 import com.vesoft.nebula.client.graph.exception.IOErrorException;
 import com.vesoft.nebula.client.graph.exception.NotValidConnectionException;
 import com.vesoft.nebula.client.graph.net.NebulaPool;
+import com.vesoft.nebula.client.graph.data.ResultSet;
 import java.net.UnknownHostException;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
@@ -30,16 +31,17 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.neo4j.driver.Driver;
+import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
 
 @Slf4j
 public class BasicCypherTest {
   private static final String SPACE_NAME = "test_space";
 
-  // @ClassRule
-  // public static DockerComposeContainer environment =
-  //    new DockerComposeContainer(new File("docker/docker-compose.yml"))
-  //        .withExposedService("graphd_1", 9669);
+  //@ClassRule
+  //public static DockerComposeContainer environment =
+   //   new DockerComposeContainer(new File("docker/docker-compose.yml"))
+     //     .withExposedService("graphd_1", 9669);
 
   /** Setup the space for testing. */
   @BeforeClass
@@ -158,21 +160,26 @@ public class BasicCypherTest {
                 final var value1 = String.join(",", "\"nodeX\"", "\"192.168.1.1\"");
                 final var value2 = String.join(",", "\"nodeY\"", "\"192.169.1.1\"");
                 final var value3 = String.join(",", "\"nodeZ\"", "\"192.170.1.1\"");
-                final var add_nodes_query = String.format(INSERT_NODE_FMT, names, 1L, value1, 2L, value2, 3L, value3);
-                final var add_nodes_result = session.run(add_nodes_query);
-                final var seek_node_query = "FETCH PROP ON Host 3 YIELD vertex as node;";
-                final var seek_node_result = session.run(seek_node_query);
-                final var seek_node_list = seek_node_result.list();
-                Assert.assertFalse(seek_node_list.isEmpty());
-                Assert.assertNotNull(seek_node_result.consume());
+                final var addNodesQuery = String.format(INSERT_NODE_FMT, names, 1L, value1, 2L, value2, 3L, value3);
+                final var addNodesResult = session.run(addNodesQuery);
+                Assert.assertNotNull(addNodesResult.consume());
+                final var seekNodesQuery = "FETCH PROP ON Host 3 YIELD vertex as node;";
+                final var seekNodeResult = session.run(seekNodesQuery);
+                final var seekNodeList = seekNodeResult.list();
+                Assert.assertFalse(seekNodeList.isEmpty());
+                log.info("Record: {}", seekNodeList.get(0).get(0));
+                //for(Record record : seekNodeList) {
+                //    log.info("Record: {}", record.get(0));
+                //}
+                Assert.assertNotNull(seekNodeResult.consume());
                 final String INSERT_EDGE_FMT = "INSERT EDGE like(likeness) VALUES %d->%d:(%.1f), %d->%d:(%.1f);";
-                final var add_edges_query = String.format(INSERT_EDGE_FMT, 1L, 2L, 70.0, 1L, 3L, 90.0);
-                final var add_edges_result = session.run(add_edges_query);
-                final var seek_edge_query = "FETCH PROP ON like 1->2 YIELD edge as e;";
-                final var seek_edge_result = session.run(seek_edge_query);
-                final var seek_edge_list = seek_edge_result.list();
-                Assert.assertFalse(seek_edge_list.isEmpty());
-                Assert.assertNotNull(seek_edge_result.consume());
+                final var addEdgesQuery = String.format(INSERT_EDGE_FMT, 1L, 2L, 70.0, 1L, 3L, 90.0);
+                final var addEdgesResult = session.run(addEdgesQuery);
+                final var seekEdgeQuery = "FETCH PROP ON like 1->2 YIELD edge as e;";
+                final var seekEdgeResult = session.run(seekEdgeQuery);
+                final var seekEdgeList = seekEdgeResult.list();
+                Assert.assertFalse(seekEdgeList.isEmpty());
+                Assert.assertNotNull(seekEdgeResult.consume());
               }
 
               return null;
