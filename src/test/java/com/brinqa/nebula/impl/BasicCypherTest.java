@@ -109,10 +109,66 @@ public class BasicCypherTest {
             final var l = r.list();
             Assert.assertTrue(l.isEmpty());
             Assert.assertNotNull(r.consume());
+            long originalSystemTime1 = System.currentTimeMillis();
+            while (true) {
+              if (System.currentTimeMillis() - originalSystemTime1 >= 10000) {
+                break;
+              }
+            }
+            //Thread.sleep(10_000);
+            // create a schema tag
+            final String CREATE_EDGE =
+                    "CREATE EDGE like (likeness double);";
+            final var createEdgeRun = session.run(CREATE_EDGE);
+            final var createEdgeList = createEdgeRun.list();
+            Assert.assertTrue(createEdgeList.isEmpty());
+            Assert.assertNotNull(createEdgeRun.consume());
+            // wait for it to make the edge
+            //Thread.sleep(10_000);
+            long originalSystemTime2 = System.currentTimeMillis();
+            while (true) {
+              if (System.currentTimeMillis() - originalSystemTime2 >= 10000) {
+                break;
+              }
+            }
+            final String INSERT_FMT = "INSERT VERTEX Host (%s) VALUES %d:(%s)";
+            final var sampleNames = String.join(",", "name", "ipAddress");
+            final var sampleValues = String.join(",", "\"bob\"", "\"192.168.1.1\"");
+            final var insertSampleQuery = String.format(INSERT_FMT, sampleNames, 10L, sampleValues);
+            final var insertSampleResult = session.run(insertSampleQuery);
+            final var insertSampleList = insertSampleResult.list();
+            Assert.assertTrue(insertSampleList.isEmpty());
+            Assert.assertNotNull(insertSampleResult.consume());
+            final String INSERT_NODE_FMT = "INSERT VERTEX Host (%s) VALUES %d:(%s), %d:(%s), %d:(%s)";
+            final var names = String.join(",", "name", "ipAddress");
+            final var value1 = String.join(",", "\"nodeX\"", "\"192.168.1.1\"");
+            final var value2 = String.join(",", "\"nodeY\"", "\"192.169.1.1\"");
+            final var value3 = String.join(",", "\"nodeZ\"", "\"192.170.1.1\"");
+            final var addNodesQuery = String.format(INSERT_NODE_FMT, names, 1L, value1, 2L, value2, 3L, value3);
+            final var addNodesResult = session.run(addNodesQuery);
+            Assert.assertNotNull(addNodesResult.consume());
+            final var seekNodesQuery = "FETCH PROP ON Host 3 YIELD vertex as node;";
+            final var seekNodeResult = session.run(seekNodesQuery);
+            final var seekNodeList = seekNodeResult.list();
+            Assert.assertFalse(seekNodeList.isEmpty());
+            //log.info("Record: {}", seekNodeList.get(0).get(0));
+            // for(Record record : seekNodeList) {
+            //    log.info("Record: {}", record.get(0));
+            //}
+            Assert.assertNotNull(seekNodeResult.consume());
+            final String INSERT_EDGE_FMT = "INSERT EDGE like(likeness) VALUES %d->%d:(%.1f), %d->%d:(%.1f);";
+            final var addEdgesQuery = String.format(INSERT_EDGE_FMT, 1L, 2L, 70.0, 1L, 3L, 90.0);
+            final var addEdgesResult = session.run(addEdgesQuery);
+            final var seekEdgeQuery = "FETCH PROP ON like 1->2 YIELD edge as e;";
+            final var seekEdgeResult = session.run(seekEdgeQuery);
+            final var seekEdgeList = seekEdgeResult.list();
+            Assert.assertFalse(seekEdgeList.isEmpty());
+            Assert.assertNotNull(seekEdgeResult.consume());
           }
           return null;
         });
 
+    /*
     // wait for it to make the tag
     Thread.sleep(10_000);
 
@@ -167,7 +223,7 @@ public class BasicCypherTest {
                 final var seekNodeResult = session.run(seekNodesQuery);
                 final var seekNodeList = seekNodeResult.list();
                 Assert.assertFalse(seekNodeList.isEmpty());
-                log.info("Record: {}", seekNodeList.get(0).get(0));
+                //log.info("Record: {}", seekNodeList.get(0).get(0));
                 //for(Record record : seekNodeList) {
                 //    log.info("Record: {}", record.get(0));
                 //}
@@ -184,6 +240,8 @@ public class BasicCypherTest {
 
               return null;
             });
+
+     */
 
   }
 }
