@@ -44,7 +44,7 @@ public class RecordImpl implements Record {
    */
   @Override
   public List<String> keys() {
-    return null;
+    return resultSet.keys();
   }
 
   /**
@@ -55,7 +55,7 @@ public class RecordImpl implements Record {
    */
   @Override
   public boolean containsKey(String key) {
-    return false;
+    return resultSet.keys().contains(key);
   }
 
   /**

@@ -23,7 +23,6 @@ import com.vesoft.nebula.client.graph.exception.ClientServerIncompatibleExceptio
 import com.vesoft.nebula.client.graph.exception.IOErrorException;
 import com.vesoft.nebula.client.graph.exception.NotValidConnectionException;
 import com.vesoft.nebula.client.graph.net.NebulaPool;
-import com.vesoft.nebula.client.graph.data.ResultSet;
 import java.net.UnknownHostException;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
@@ -31,7 +30,6 @@ import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.neo4j.driver.Driver;
-import org.neo4j.driver.Record;
 import org.neo4j.driver.Session;
 
 @Slf4j
@@ -98,7 +96,6 @@ public class BasicCypherTest {
   /** Simple insert with simple read. */
   @Test
   public void testReadObjects() throws InterruptedException {
-    // tag creation
     withDriver(
         driver -> {
           // create a schema tag
@@ -150,8 +147,11 @@ public class BasicCypherTest {
             final var seekNodesQuery = "FETCH PROP ON Host 3 YIELD vertex as node;";
             final var seekNodeResult = session.run(seekNodesQuery);
             final var seekNodeList = seekNodeResult.list();
-            Assert.assertFalse(seekNodeList.isEmpty());
-            //log.info("Record: {}", seekNodeList.get(0).get(0));
+            //Assert.assertFalse(seekNodeList.isEmpty());
+            Assert.assertTrue(seekNodeList.size()==1);
+            Assert.assertTrue(seekNodeList.get(0).containsKey("node"));
+            //printResult(seekNodeResult);
+            //log.info("Record: {}", seekNodeList.get(0).keys());
             // for(Record record : seekNodeList) {
             //    log.info("Record: {}", record.get(0));
             //}
@@ -162,7 +162,9 @@ public class BasicCypherTest {
             final var seekEdgeQuery = "FETCH PROP ON like 1->2 YIELD edge as e;";
             final var seekEdgeResult = session.run(seekEdgeQuery);
             final var seekEdgeList = seekEdgeResult.list();
-            Assert.assertFalse(seekEdgeList.isEmpty());
+            //Assert.assertFalse(seekEdgeList.isEmpty());
+            Assert.assertTrue(seekEdgeList.size()==1);
+            Assert.assertTrue(seekEdgeList.get(0).containsKey("e"));
             Assert.assertNotNull(seekEdgeResult.consume());
           }
           return null;
