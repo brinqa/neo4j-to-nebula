@@ -17,6 +17,7 @@ package com.brinqa.nebula.impl;
 
 import com.vesoft.nebula.Row;
 import com.vesoft.nebula.client.graph.data.ResultSet;
+import com.vesoft.nebula.client.graph.data.ValueWrapper;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -67,6 +68,11 @@ public class RecordImpl implements Record {
    */
   @Override
   public Value get(String key) {
+    if (!(resultSet.keys().contains(key))) {
+      return null;
+    }
+    // need to munge the ValueWrapper objects list into type Value - Will to work on that
+    // return resultSet.colValues(key);
     return null;
   }
 
@@ -77,7 +83,7 @@ public class RecordImpl implements Record {
    */
   @Override
   public int size() {
-    return 0;
+    return resultSet.keys().toArray().length;
   }
 
   /**
