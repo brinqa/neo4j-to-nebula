@@ -149,8 +149,8 @@ public class BasicCypherTest {
             final var seekNodeList = seekNodeResult.list();
             //Assert.assertFalse(seekNodeList.isEmpty());
             // check single record
-            Assert.assertTrue(seekNodeList.size()==1);
-            Assert.assertTrue(seekNodeList.get(0).size()==1);
+            Assert.assertEquals(1, seekNodeList.size());
+            Assert.assertEquals(1, seekNodeList.get(0).size());
             // check record is rendered as "node"
             Assert.assertTrue(seekNodeList.get(0).containsKey("node"));
             //printResult(seekNodeResult);
@@ -167,7 +167,7 @@ public class BasicCypherTest {
             final var seekEdgeResult = session.run(seekEdgeQuery);
             final var seekEdgeList = seekEdgeResult.list();
             //Assert.assertFalse(seekEdgeList.isEmpty());
-            Assert.assertTrue(seekEdgeList.size()==1);
+            Assert.assertEquals(1, seekEdgeList.size());
             Assert.assertTrue(seekEdgeList.get(0).containsKey("e"));
             Assert.assertNotNull(seekEdgeResult.consume());
             //update a vertex
@@ -182,7 +182,7 @@ public class BasicCypherTest {
             Assert.assertNotNull(deleteNodeResult.consume());
             final var seekDeletedNodeResult = session.run(seekNodesQuery);
             final var seekDeletedNodeList = seekDeletedNodeResult.list();
-            Assert.assertTrue(seekDeletedNodeList.size()==0);
+            Assert.assertTrue(seekDeletedNodeList.isEmpty());
           }
           return null;
         });

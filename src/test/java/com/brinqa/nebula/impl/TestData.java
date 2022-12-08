@@ -232,40 +232,43 @@ public class TestData {
 
   @Test
   public void testResult() {
-    try {
-      // build test data
-      final ExecutionResponse resp = new ExecutionResponse();
-      resp.error_code = ErrorCode.SUCCEEDED;
-      resp.error_msg = "test".getBytes();
-      resp.comment = "test_comment".getBytes();
-      resp.latency_in_us = 1000;
-      resp.plan_desc = new PlanDescription();
-      resp.space_name = "test_space".getBytes();
-      resp.data = getDateset();
+    // build test data
+    final ExecutionResponse resp = new ExecutionResponse();
+    resp.error_code = ErrorCode.SUCCEEDED;
+    resp.error_msg = "test".getBytes();
+    resp.comment = "test_comment".getBytes();
+    resp.latency_in_us = 1000;
+    resp.plan_desc = new PlanDescription();
+    resp.space_name = "test_space".getBytes();
+    resp.data = getDateset();
 
-      final var resultSet = new ResultSet(resp, 28800);
+    final var resultSet = new ResultSet(resp, 28800);
 
-      // confirm that the data works in a neo4j based manner
-      final var summary = new ResultSummaryImpl(0, null, "test_space", null);
-      final var resultImpl = new ResultImpl(resultSet, summary);
+    // confirm that the data works in a neo4j based manner
+    final var summary = new ResultSummaryImpl(0, null, "test_space", null);
+    final var resultImpl = new ResultImpl(resultSet, summary);
 
-      // assert the summary
-      Assert.assertSame(summary, resultImpl.consume());
+    // assert the summary
+    Assert.assertSame(summary, resultImpl.consume());
 
-      // check a simple value
-      final var records = resultImpl.list();
-      Assert.assertEquals(1, records.size());
+    // check a simple value
+    final var records = resultImpl.list();
+    Assert.assertEquals(1, records.size());
 
-      // check the values within one record
-      final var record = records.get(0);
-      var col0 = record.get(0); // empty
-      Assert.assertTrue(col0.isEmpty());
-      col0 = record.get("col0_empty"); // empty
-      Assert.assertTrue(col0.isEmpty());
+    // check the values within one record
+    final var record = records.get(0);
+    var col0 = record.get(0); // empty
+    Assert.assertTrue(col0.isEmpty());
+    Assert.assertFalse(col0.isNull());
+    col0 = record.get("col0_empty"); // empty
+    Assert.assertTrue(col0.isEmpty());
+    Assert.assertFalse(col0.isNull());
 
-    } catch (Exception e) {
-      e.printStackTrace();
-      assert (false);
-    }
+    var col1 = record.get(1);
+    Assert.assertFalse(col1.isEmpty());
+    Assert.assertTrue(col1.isNull());
+    col1 = record.get("col1_null");
+    Assert.assertFalse(col1.isEmpty());
+    Assert.assertTrue(col1.isNull());
   }
 }

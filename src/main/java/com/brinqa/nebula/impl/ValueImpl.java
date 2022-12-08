@@ -15,23 +15,26 @@
  */
 package com.brinqa.nebula.impl;
 
-import com.vesoft.nebula.client.graph.data.ResultSet.Record;
-import com.vesoft.nebula.client.graph.data.ValueWrapper;
+import java.io.UnsupportedEncodingException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.OffsetTime;
 import java.time.ZonedDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
-import lombok.AllArgsConstructor;
+import java.util.stream.Stream;
+
 import org.neo4j.driver.Value;
 import org.neo4j.driver.Values;
 import org.neo4j.driver.exceptions.ClientException;
 import org.neo4j.driver.exceptions.value.LossyCoercion;
 import org.neo4j.driver.exceptions.value.Uncoercible;
+import org.neo4j.driver.internal.types.TypeConstructor;
+import org.neo4j.driver.internal.types.TypeRepresentation;
 import org.neo4j.driver.internal.value.NullValue;
 import org.neo4j.driver.types.Entity;
 import org.neo4j.driver.types.IsoDuration;
@@ -42,6 +45,14 @@ import org.neo4j.driver.types.Relationship;
 import org.neo4j.driver.types.Type;
 import org.neo4j.driver.types.TypeSystem;
 
+import com.vesoft.nebula.client.graph.data.ResultSet.Record;
+import com.vesoft.nebula.client.graph.data.ValueWrapper;
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+import static java.util.stream.Collectors.toList;
+
+@Slf4j
 @AllArgsConstructor
 public class ValueImpl implements Value {
   private final Record record;
@@ -133,7 +144,31 @@ public class ValueImpl implements Value {
    */
   @Override
   public Iterable<String> keys() {
-    return null;
+
+    try {
+      if (valueWrapper.isMap()) {
+        return valueWrapper.asMap().keySet();
+      }
+      if (valueWrapper.isEdge()) {
+        com.vesoft.nebula.client.graph.data.Node n = valueWrapper.asNode();
+        return n.labels().stream()
+            .flatMap(
+                l -> {
+                  try {
+                    return n.keys(l).stream();
+                  } catch (UnsupportedEncodingException e) {
+                    return Stream.empty();
+                  }
+                })
+            .collect(toList());
+      }
+      if (valueWrapper.isVertex()) {
+        return valueWrapper.asRelationship().keys();
+      }
+    } catch (UnsupportedEncodingException e) {
+      log.warn("Attempt to get keys from invalid type.", e);
+    }
+    return Collections.emptyList();
   }
 
   /**
@@ -144,7 +179,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public boolean containsKey(String key) {
-    return false;
+    return record.contains(key);
   }
 
   /**
@@ -168,6 +203,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public Value get(int index) {
+    // most of the time this is zero
     return null;
   }
 
@@ -176,7 +212,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public Type type() {
-    return null;
+    return TypeConverter.toNeo4jType(valueWrapper.getValue());
   }
 
   /**
@@ -187,7 +223,9 @@ public class ValueImpl implements Value {
    */
   @Override
   public boolean hasType(Type type) {
-    return false;
+    // what's in the java doc doesn't work because it depends on InternalValue
+    // so we're going to use equals which checks just TypeConstructor
+    return type().equals(type);
   }
 
   /**
@@ -195,7 +233,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public boolean isTrue() {
-    return false;
+    return valueWrapper.isBoolean() && valueWrapper.asBoolean();
   }
 
   /**
@@ -203,7 +241,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public boolean isFalse() {
-    return false;
+    return valueWrapper.isBoolean() && valueWrapper.asBoolean();
   }
 
   /**
@@ -211,7 +249,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public boolean isNull() {
-    return false;
+    return valueWrapper.isNull();
   }
 
   /**
@@ -264,13 +302,21 @@ public class ValueImpl implements Value {
     return null;
   }
 
+  void throwUncoercible(TypeConstructor type) {
+    final var destinationType = new TypeRepresentation(type);
+    final var sourceType = TypeConverter.toNeo4jType(valueWrapper.getValue());
+    throw new Uncoercible(sourceType.name(), destinationType.name());
+  }
   /**
    * @return the value as a Java boolean, if possible.
    * @throws Uncoercible if value types are incompatible.
    */
   @Override
   public boolean asBoolean() {
-    return false;
+    if (!valueWrapper.isBoolean()) {
+      throwUncoercible(TypeConstructor.BOOLEAN);
+    }
+    return valueWrapper.asBoolean();
   }
 
   /**
@@ -280,7 +326,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public boolean asBoolean(boolean defaultValue) {
-    return false;
+    return (isNull()) ? defaultValue : asBoolean();
   }
 
   /**
@@ -308,7 +354,14 @@ public class ValueImpl implements Value {
    */
   @Override
   public String asString() {
-    return null;
+    if (!valueWrapper.isString()) {
+      throwUncoercible(TypeConstructor.STRING);
+    }
+    try {
+      return valueWrapper.asString();
+    } catch (UnsupportedEncodingException e) {
+      throw new ClientException(e.getMessage(), e);
+    }
   }
 
   /**
@@ -318,7 +371,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public String asString(String defaultValue) {
-    return null;
+    return (!valueWrapper.isNull()) ? defaultValue : asString();
   }
 
   /**
@@ -327,7 +380,17 @@ public class ValueImpl implements Value {
    */
   @Override
   public Number asNumber() {
-    return null;
+    if (!(valueWrapper.isLong() || valueWrapper.isDouble())) {
+      throwUncoercible(TypeConstructor.NUMBER);
+    }
+    if (valueWrapper.isLong()) {
+      return valueWrapper.asLong();
+    }
+    if (valueWrapper.isDouble()) {
+      return valueWrapper.asDouble();
+    }
+    throw new UnsupportedOperationException(
+        "Unknown type:" + valueWrapper.getValue().getSetField());
   }
 
   /**
@@ -339,7 +402,10 @@ public class ValueImpl implements Value {
    */
   @Override
   public long asLong() {
-    return 0;
+    if (!valueWrapper.isLong()) {
+      throwUncoercible(TypeConstructor.NUMBER);
+    }
+    return valueWrapper.asLong();
   }
 
   /**
@@ -352,7 +418,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public long asLong(long defaultValue) {
-    return 0;
+    return isNull() ? defaultValue : asLong();
   }
 
   /**
@@ -364,7 +430,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public int asInt() {
-    return 0;
+    return (int) asLong();
   }
 
   /**
@@ -377,7 +443,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public int asInt(int defaultValue) {
-    return 0;
+    return isNull() ? defaultValue : asInt();
   }
 
   /**
@@ -389,7 +455,10 @@ public class ValueImpl implements Value {
    */
   @Override
   public double asDouble() {
-    return 0;
+    if (!valueWrapper.isDouble()) {
+      throwUncoercible(TypeConstructor.NUMBER);
+    }
+    return valueWrapper.asDouble();
   }
 
   /**
@@ -402,7 +471,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public double asDouble(double defaultValue) {
-    return 0;
+    return isNull() ? defaultValue : asDouble();
   }
 
   /**
@@ -414,7 +483,10 @@ public class ValueImpl implements Value {
    */
   @Override
   public float asFloat() {
-    return 0;
+    if (!valueWrapper.isDouble()) {
+      throwUncoercible(TypeConstructor.NUMBER);
+    }
+    return ((Double) valueWrapper.getValue().getFieldValue()).floatValue();
   }
 
   /**
@@ -427,7 +499,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public float asFloat(float defaultValue) {
-    return 0;
+    return isNull() ? defaultValue : asFloat();
   }
 
   /**
@@ -439,7 +511,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public List<Object> asList() {
-    return null;
+    return asList(Value::asObject);
   }
 
   /**
@@ -452,7 +524,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public List<Object> asList(List<Object> defaultValue) {
-    return null;
+    return isNull() ? defaultValue : asList();
   }
 
   /**
@@ -475,7 +547,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public <T> List<T> asList(Function<Value, T> mapFunction, List<T> defaultValue) {
-    return null;
+    return isNull() ? defaultValue : asList(mapFunction);
   }
 
   /**
