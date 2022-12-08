@@ -148,10 +148,14 @@ public class BasicCypherTest {
             final var seekNodeResult = session.run(seekNodesQuery);
             final var seekNodeList = seekNodeResult.list();
             //Assert.assertFalse(seekNodeList.isEmpty());
+            // check single record
             Assert.assertTrue(seekNodeList.size()==1);
+            Assert.assertTrue(seekNodeList.get(0).size()==1);
+            // check record is rendered as "node"
             Assert.assertTrue(seekNodeList.get(0).containsKey("node"));
             //printResult(seekNodeResult);
-            //log.info("Record: {}", seekNodeList.get(0).keys());
+            //log.info("Record size: {}", seekNodeList.get(0).size());
+            //log.info("Value of key: {}", seekNodeList.get(0).get("node"));
             // for(Record record : seekNodeList) {
             //    log.info("Record: {}", record.get(0));
             //}
@@ -166,84 +170,21 @@ public class BasicCypherTest {
             Assert.assertTrue(seekEdgeList.size()==1);
             Assert.assertTrue(seekEdgeList.get(0).containsKey("e"));
             Assert.assertNotNull(seekEdgeResult.consume());
+            //update a vertex
+            final String UPDATE_NODE_FMT = "UPDATE VERTEX %d SET %s.%s=\"%s\";";
+            final var updateAttrQuery = String.format(UPDATE_NODE_FMT, 3L, "host", "name", "nodeW");
+            final var updateAttrResult = session.run(updateAttrQuery);
+            Assert.assertNotNull(updateAttrResult.consume());
+            // delete a vertex, fetch and confirm null
+            final String DELETE_NODE_FMT = "DELETE VERTEX %d;";
+            final var deleteNodeQuery = String.format(DELETE_NODE_FMT, 3L);
+            final var deleteNodeResult = session.run(deleteNodeQuery);
+            Assert.assertNotNull(deleteNodeResult.consume());
+            final var seekDeletedNodeResult = session.run(seekNodesQuery);
+            final var seekDeletedNodeList = seekDeletedNodeResult.list();
+            Assert.assertTrue(seekDeletedNodeList.size()==0);
           }
           return null;
         });
-
-    /*
-    // wait for it to make the tag
-    Thread.sleep(10_000);
-
-    // edge creation
-    withDriver(
-            driver -> {
-              // create a schema tag
-              final String CREATE_EDGE =
-                      "CREATE EDGE like (likeness double);";
-              try (Session session = driver.session()) {
-                final var r = session.run(CREATE_EDGE);
-                final var l = r.list();
-                Assert.assertTrue(l.isEmpty());
-                Assert.assertNotNull(r.consume());
-              }
-              return null;
-            });
-
-    // wait for it to make the edge
-    Thread.sleep(10_000);
-
-    withDriver(
-        driver -> {
-          // insert some records and read them back
-          try (Session session = driver.session()) {
-            final String INSERT_FMT = "INSERT VERTEX Host (%s) VALUES %d:(%s)";
-            final var names = String.join(",", "name", "ipAddress");
-            final var values = String.join(",", "\"bob\"", "\"192.168.1.1\"");
-            final var query = String.format(INSERT_FMT, names, 10L, values);
-            final var r = session.run(query);
-            final var l = r.list();
-            Assert.assertTrue(l.isEmpty());
-            Assert.assertNotNull(r.consume());
-          }
-
-          return null;
-        });
-
-    withDriver(
-            driver -> {
-              // insert some records and read them back
-              try (Session session = driver.session()) {
-                final String INSERT_NODE_FMT = "INSERT VERTEX Host (%s) VALUES %d:(%s), %d:(%s), %d:(%s)";
-                final var names = String.join(",", "name", "ipAddress");
-                final var value1 = String.join(",", "\"nodeX\"", "\"192.168.1.1\"");
-                final var value2 = String.join(",", "\"nodeY\"", "\"192.169.1.1\"");
-                final var value3 = String.join(",", "\"nodeZ\"", "\"192.170.1.1\"");
-                final var addNodesQuery = String.format(INSERT_NODE_FMT, names, 1L, value1, 2L, value2, 3L, value3);
-                final var addNodesResult = session.run(addNodesQuery);
-                Assert.assertNotNull(addNodesResult.consume());
-                final var seekNodesQuery = "FETCH PROP ON Host 3 YIELD vertex as node;";
-                final var seekNodeResult = session.run(seekNodesQuery);
-                final var seekNodeList = seekNodeResult.list();
-                Assert.assertFalse(seekNodeList.isEmpty());
-                //log.info("Record: {}", seekNodeList.get(0).get(0));
-                //for(Record record : seekNodeList) {
-                //    log.info("Record: {}", record.get(0));
-                //}
-                Assert.assertNotNull(seekNodeResult.consume());
-                final String INSERT_EDGE_FMT = "INSERT EDGE like(likeness) VALUES %d->%d:(%.1f), %d->%d:(%.1f);";
-                final var addEdgesQuery = String.format(INSERT_EDGE_FMT, 1L, 2L, 70.0, 1L, 3L, 90.0);
-                final var addEdgesResult = session.run(addEdgesQuery);
-                final var seekEdgeQuery = "FETCH PROP ON like 1->2 YIELD edge as e;";
-                final var seekEdgeResult = session.run(seekEdgeQuery);
-                final var seekEdgeList = seekEdgeResult.list();
-                Assert.assertFalse(seekEdgeList.isEmpty());
-                Assert.assertNotNull(seekEdgeResult.consume());
-              }
-
-              return null;
-            });
-
-     */
-
   }
 }
