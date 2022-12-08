@@ -34,7 +34,14 @@ public class ValueImpl implements Value {
 
     @Override
     public int size() {
-        return 0;
+        int totalValuesNum = 0;
+        for (int i = 0; i < resultSet.rowsSize(); i++) {
+            ResultSet.Record record = resultSet.rowValues(i);
+            for (ValueWrapper value : record.values()) {
+                totalValuesNum += 1;
+            }
+        }
+        return totalValuesNum;
     }
 
     @Override
@@ -59,7 +66,7 @@ public class ValueImpl implements Value {
 
     @Override
     public boolean isEmpty() {
-        return false;
+        return resultSet.rowsSize() <= 0;
     }
 
     @Override
