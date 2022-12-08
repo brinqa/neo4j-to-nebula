@@ -15,12 +15,14 @@
  */
 package com.brinqa.nebula.impl;
 
+import com.vesoft.nebula.client.graph.data.ResultSet;
+import com.vesoft.nebula.client.graph.data.ValueWrapper;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
-
+import lombok.AllArgsConstructor;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.Values;
@@ -32,10 +34,6 @@ import org.neo4j.driver.types.Node;
 import org.neo4j.driver.types.Path;
 import org.neo4j.driver.types.Relationship;
 import org.neo4j.driver.util.Pair;
-
-import com.vesoft.nebula.client.graph.data.ResultSet;
-import com.vesoft.nebula.client.graph.data.ValueWrapper;
-import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
 public class RecordImpl implements Record {

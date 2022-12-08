@@ -15,6 +15,7 @@
  */
 package com.brinqa.nebula.impl;
 
+import com.vesoft.nebula.client.graph.data.ResultSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,15 +24,11 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Records;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.exceptions.NoSuchRecordException;
 import org.neo4j.driver.summary.ResultSummary;
-
-import com.vesoft.nebula.Row;
-import com.vesoft.nebula.client.graph.data.ResultSet;
 
 public class ResultImpl implements Result {
 
