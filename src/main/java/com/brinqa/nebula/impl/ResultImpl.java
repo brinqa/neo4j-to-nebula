@@ -16,25 +16,38 @@
 package com.brinqa.nebula.impl;
 
 import com.vesoft.nebula.client.graph.data.ResultSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
-import lombok.AllArgsConstructor;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Records;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.exceptions.NoSuchRecordException;
 import org.neo4j.driver.summary.ResultSummary;
 
-@AllArgsConstructor
 public class ResultImpl implements Result {
 
   private final ResultSet resultSet;
   private final ResultSummary resultSummary;
 
+  // built-in constructor
   private final AtomicInteger index = new AtomicInteger();
+  private final Map<String, Integer> column2Index = new HashMap<>();
+
+  public ResultImpl(ResultSet resultSet, ResultSummary resultSummary) {
+    this.resultSet = resultSet;
+    this.resultSummary = resultSummary;
+
+    final var names = resultSet.getColumnNames();
+    for (int i = 0; i < names.size(); i++) {
+      column2Index.put(names.get(i), i);
+    }
+  }
 
   /**
    * Retrieve the keys of the records this result contains.
@@ -97,11 +110,15 @@ public class ResultImpl implements Result {
    */
   @Override
   public Record peek() {
+    if ((index.get() + 1) >= resultSet.rowsSize()) {
+      throw new NoSuchRecordException("Peek ahead of actual size of the index.");
+    }
     return get(index.get() + 1);
   }
 
   private Record get(int idx) {
-    return new RecordImpl(resultSet, resultSet.getRows().get(idx));
+    final var record = resultSet.rowValues(idx);
+    return new RecordImpl(resultSet, record, column2Index);
   }
 
   /**
@@ -131,11 +148,8 @@ public class ResultImpl implements Result {
    */
   @Override
   public List<Record> list() {
-    if (resultSet.isEmpty()) {
-      return List.of();
-    }
-    return resultSet.getRows().stream()
-        .map(r -> new RecordImpl(resultSet, r))
+    return IntStream.range(0, resultSet.rowsSize())
+        .mapToObj(this::get)
         .collect(Collectors.toList());
   }
 

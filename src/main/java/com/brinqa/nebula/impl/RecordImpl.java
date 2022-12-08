@@ -15,16 +15,19 @@
  */
 package com.brinqa.nebula.impl;
 
-import com.vesoft.nebula.Row;
 import com.vesoft.nebula.client.graph.data.ResultSet;
 import com.vesoft.nebula.client.graph.data.ValueWrapper;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.AllArgsConstructor;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Value;
+import org.neo4j.driver.Values;
+import org.neo4j.driver.exceptions.ClientException;
+import org.neo4j.driver.exceptions.NoSuchRecordException;
 import org.neo4j.driver.internal.value.NullValue;
 import org.neo4j.driver.types.Entity;
 import org.neo4j.driver.types.Node;
@@ -36,7 +39,8 @@ import org.neo4j.driver.util.Pair;
 public class RecordImpl implements Record {
 
   private final ResultSet resultSet;
-  private final Row row;
+  private final ResultSet.Record record;
+  private final Map<String, Integer> column2Index;
 
   /**
    * Retrieve the keys of the underlying map
@@ -56,7 +60,7 @@ public class RecordImpl implements Record {
    */
   @Override
   public boolean containsKey(String key) {
-    return resultSet.keys().contains(key);
+    return column2Index.containsKey(key);
   }
 
   /**
@@ -68,12 +72,11 @@ public class RecordImpl implements Record {
    */
   @Override
   public Value get(String key) {
-    if (!(resultSet.keys().contains(key))) {
-      return null;
+    if (!containsKey(key)) {
+      return NullValue.NULL;
     }
-    // need to munge the ValueWrapper objects list into type Value - Will to work on that
-    // return resultSet.colValues(key);
-    return null;
+    final ValueWrapper valueWrapper = record.get(key);
+    return new ValueImpl(record, valueWrapper);
   }
 
   /**
@@ -83,7 +86,7 @@ public class RecordImpl implements Record {
    */
   @Override
   public int size() {
-    return resultSet.keys().toArray().length;
+    return record.size();
   }
 
   /**
@@ -93,7 +96,9 @@ public class RecordImpl implements Record {
    */
   @Override
   public List<Value> values() {
-    return null;
+    return record.values().stream()
+        .map(it -> new ValueImpl(record, it))
+        .collect(Collectors.toList());
   }
 
   /**
@@ -105,7 +110,7 @@ public class RecordImpl implements Record {
    */
   @Override
   public <T> Iterable<T> values(Function<Value, T> mapFunction) {
-    return null;
+    return values().stream().map(mapFunction).collect(Collectors.toList());
   }
 
   /**
@@ -142,7 +147,11 @@ public class RecordImpl implements Record {
    */
   @Override
   public int index(String key) {
-    return 0;
+    final Integer idx = column2Index.get(key);
+    if (null == idx) {
+      throw new NoSuchRecordException("Key does not exist: " + key);
+    }
+    return idx;
   }
 
   /**
@@ -154,7 +163,10 @@ public class RecordImpl implements Record {
    */
   @Override
   public Value get(int index) {
-    return null;
+    if (index >= record.size()) {
+      return NullValue.NULL;
+    }
+    return new ValueImpl(record, record.get(index));
   }
 
   /**
@@ -196,6 +208,10 @@ public class RecordImpl implements Record {
     return null;
   }
 
+  private <T> T internalGetValue(String key, T defaultValue) {
+    return null;
+  }
+
   /**
    * Retrieve the number with the given key. If no number found by the key, then the default number
    * provided would be returned.
@@ -207,7 +223,7 @@ public class RecordImpl implements Record {
    */
   @Override
   public Number get(String key, Number defaultValue) {
-    return null;
+    return internalGetValue(key, defaultValue);
   }
 
   /**
