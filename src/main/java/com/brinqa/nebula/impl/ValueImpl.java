@@ -71,12 +71,12 @@ public class ValueImpl implements Value {
 
     @Override
     public Iterable<String> keys() {
-        return null;
+        return resultSet.keys();
     }
 
     @Override
     public boolean containsKey(String key) {
-        return false;
+        return resultSet.keys().contains(key);
     }
 
     @Override
