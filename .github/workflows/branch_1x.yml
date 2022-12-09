@@ -1,4 +1,4 @@
-name: 4.4.x Build
+name: 1.x Build
 
 on:
   push:
