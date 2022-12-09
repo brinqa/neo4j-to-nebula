@@ -23,12 +23,17 @@ import com.vesoft.nebula.client.graph.exception.ClientServerIncompatibleExceptio
 import com.vesoft.nebula.client.graph.exception.IOErrorException;
 import com.vesoft.nebula.client.graph.exception.NotValidConnectionException;
 import com.vesoft.nebula.client.graph.net.NebulaPool;
+
+import java.io.File;
 import java.net.UnknownHostException;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.junit.Test;
+import org.testcontainers.containers.DockerComposeContainer;
+
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Session;
 
@@ -36,10 +41,10 @@ import org.neo4j.driver.Session;
 public class BasicCypherTest {
   private static final String SPACE_NAME = "test_space";
 
-  //@ClassRule
-  //public static DockerComposeContainer environment =
-   //   new DockerComposeContainer(new File("docker/docker-compose.yml"))
-     //     .withExposedService("graphd_1", 9669);
+  @ClassRule
+  public static DockerComposeContainer environment =
+      new DockerComposeContainer(new File("docker/docker-compose.yml"))
+          .withExposedService("graphd_1", 9669);
 
   /** Setup the space for testing. */
   @BeforeClass
@@ -85,7 +90,7 @@ public class BasicCypherTest {
           try (Session session = driver.session()) {
             // final String CREATE_TAG = "CREATE TAG Host (`name` string, `ipAddress` string);";
             final var r = session.run("USE test_space; MATCH (n:Host) RETURN n LIMIT 1;");
-            //final var r = session.run("SHOW HOSTS;");
+            // final var r = session.run("SHOW HOSTS;");
             // System.out.println(r);
             Assert.assertTrue(r.list().isEmpty());
             return null;
@@ -112,16 +117,15 @@ public class BasicCypherTest {
                 break;
               }
             }
-            //Thread.sleep(10_000);
+            // Thread.sleep(10_000);
             // create a schema tag
-            final String CREATE_EDGE =
-                    "CREATE EDGE like (likeness double);";
+            final String CREATE_EDGE = "CREATE EDGE like (likeness double);";
             final var createEdgeRun = session.run(CREATE_EDGE);
             final var createEdgeList = createEdgeRun.list();
             Assert.assertTrue(createEdgeList.isEmpty());
             Assert.assertNotNull(createEdgeRun.consume());
             // wait for it to make the edge
-            //Thread.sleep(10_000);
+            // Thread.sleep(10_000);
             long originalSystemTime2 = System.currentTimeMillis();
             while (true) {
               if (System.currentTimeMillis() - originalSystemTime2 >= 10000) {
@@ -136,41 +140,44 @@ public class BasicCypherTest {
             final var insertSampleList = insertSampleResult.list();
             Assert.assertTrue(insertSampleList.isEmpty());
             Assert.assertNotNull(insertSampleResult.consume());
-            final String INSERT_NODE_FMT = "INSERT VERTEX Host (%s) VALUES %d:(%s), %d:(%s), %d:(%s)";
+            final String INSERT_NODE_FMT =
+                "INSERT VERTEX Host (%s) VALUES %d:(%s), %d:(%s), %d:(%s)";
             final var names = String.join(",", "name", "ipAddress");
             final var value1 = String.join(",", "\"nodeX\"", "\"192.168.1.1\"");
             final var value2 = String.join(",", "\"nodeY\"", "\"192.169.1.1\"");
             final var value3 = String.join(",", "\"nodeZ\"", "\"192.170.1.1\"");
-            final var addNodesQuery = String.format(INSERT_NODE_FMT, names, 1L, value1, 2L, value2, 3L, value3);
+            final var addNodesQuery =
+                String.format(INSERT_NODE_FMT, names, 1L, value1, 2L, value2, 3L, value3);
             final var addNodesResult = session.run(addNodesQuery);
             Assert.assertNotNull(addNodesResult.consume());
             final var seekNodesQuery = "FETCH PROP ON Host 3 YIELD vertex as node;";
             final var seekNodeResult = session.run(seekNodesQuery);
             final var seekNodeList = seekNodeResult.list();
-            //Assert.assertFalse(seekNodeList.isEmpty());
+            // Assert.assertFalse(seekNodeList.isEmpty());
             // check single record
             Assert.assertEquals(1, seekNodeList.size());
             Assert.assertEquals(1, seekNodeList.get(0).size());
             // check record is rendered as "node"
             Assert.assertTrue(seekNodeList.get(0).containsKey("node"));
-            //printResult(seekNodeResult);
-            //log.info("Record size: {}", seekNodeList.get(0).size());
-            //log.info("Value of key: {}", seekNodeList.get(0).get("node"));
+            // printResult(seekNodeResult);
+            // log.info("Record size: {}", seekNodeList.get(0).size());
+            // log.info("Value of key: {}", seekNodeList.get(0).get("node"));
             // for(Record record : seekNodeList) {
             //    log.info("Record: {}", record.get(0));
-            //}
+            // }
             Assert.assertNotNull(seekNodeResult.consume());
-            final String INSERT_EDGE_FMT = "INSERT EDGE like(likeness) VALUES %d->%d:(%.1f), %d->%d:(%.1f);";
+            final String INSERT_EDGE_FMT =
+                "INSERT EDGE like(likeness) VALUES %d->%d:(%.1f), %d->%d:(%.1f);";
             final var addEdgesQuery = String.format(INSERT_EDGE_FMT, 1L, 2L, 70.0, 1L, 3L, 90.0);
             final var addEdgesResult = session.run(addEdgesQuery);
             final var seekEdgeQuery = "FETCH PROP ON like 1->2 YIELD edge as e;";
             final var seekEdgeResult = session.run(seekEdgeQuery);
             final var seekEdgeList = seekEdgeResult.list();
-            //Assert.assertFalse(seekEdgeList.isEmpty());
+            // Assert.assertFalse(seekEdgeList.isEmpty());
             Assert.assertEquals(1, seekEdgeList.size());
             Assert.assertTrue(seekEdgeList.get(0).containsKey("e"));
             Assert.assertNotNull(seekEdgeResult.consume());
-            //update a vertex
+            // update a vertex
             final String UPDATE_NODE_FMT = "UPDATE VERTEX %d SET %s.%s=\"%s\";";
             final var updateAttrQuery = String.format(UPDATE_NODE_FMT, 3L, "host", "name", "nodeW");
             final var updateAttrResult = session.run(updateAttrQuery);
