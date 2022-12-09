@@ -15,21 +15,25 @@
  */
 package com.brinqa.nebula.impl;
 
-import com.vesoft.nebula.client.graph.data.ResultSet;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
+
+import org.neo4j.driver.InternalRecord;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Records;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.exceptions.NoSuchRecordException;
+import org.neo4j.driver.internal.value.ValueAdapter;
 import org.neo4j.driver.summary.ResultSummary;
 
+import com.vesoft.nebula.client.graph.data.ResultSet;
+import lombok.AllArgsConstructor;
+
+@AllArgsConstructor
 public class ResultImpl implements Result {
 
   private final ResultSet resultSet;
@@ -37,17 +41,6 @@ public class ResultImpl implements Result {
 
   // built-in constructor
   private final AtomicInteger index = new AtomicInteger();
-  private final Map<String, Integer> column2Index = new HashMap<>();
-
-  public ResultImpl(ResultSet resultSet, ResultSummary resultSummary) {
-    this.resultSet = resultSet;
-    this.resultSummary = resultSummary;
-
-    final var names = resultSet.getColumnNames();
-    for (int i = 0; i < names.size(); i++) {
-      column2Index.put(names.get(i), i);
-    }
-  }
 
   /**
    * Retrieve the keys of the records this result contains.
@@ -117,8 +110,14 @@ public class ResultImpl implements Result {
   }
 
   private Record get(int idx) {
-    final var record = resultSet.rowValues(idx);
-    return new RecordImpl(resultSet, record, column2Index);
+    // build a neo4j record from the nebula record
+    final var queryKeys = resultSet.getColumnNames();
+    final var nebulaRecord = resultSet.rowValues(idx);
+    final var values =
+        nebulaRecord.values().stream()
+            .map(NebulaToNeo4jConverter::toValue)
+            .toArray(ValueAdapter[]::new);
+    return new InternalRecord(queryKeys, values);
   }
 
   /**

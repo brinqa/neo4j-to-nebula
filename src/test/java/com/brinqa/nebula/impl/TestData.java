@@ -1,10 +1,21 @@
-/* Copyright (c) 2020 vesoft inc. All rights reserved.
+/*
+ * Copyright 2022 Brinqa, Inc. All rights reserved.
  *
- * This source code is licensed under Apache 2.0 License.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
-
 package com.brinqa.nebula.impl;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -12,9 +23,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
+
+import org.neo4j.driver.exceptions.value.NotMultiValued;
 
 import com.vesoft.nebula.Coordinate;
 import com.vesoft.nebula.DataSet;
@@ -38,23 +48,14 @@ import com.vesoft.nebula.Tag;
 import com.vesoft.nebula.Time;
 import com.vesoft.nebula.Value;
 import com.vesoft.nebula.Vertex;
-import com.vesoft.nebula.client.graph.data.DateTimeWrapper;
-import com.vesoft.nebula.client.graph.data.DateWrapper;
-import com.vesoft.nebula.client.graph.data.DurationWrapper;
-import com.vesoft.nebula.client.graph.data.LineStringWrapper;
-import com.vesoft.nebula.client.graph.data.Node;
-import com.vesoft.nebula.client.graph.data.PathWrapper;
-import com.vesoft.nebula.client.graph.data.PointWrapper;
-import com.vesoft.nebula.client.graph.data.PolygonWrapper;
-import com.vesoft.nebula.client.graph.data.Relationship;
 import com.vesoft.nebula.client.graph.data.ResultSet;
-import com.vesoft.nebula.client.graph.data.TimeWrapper;
-import com.vesoft.nebula.client.graph.data.ValueWrapper;
 import com.vesoft.nebula.graph.ExecutionResponse;
 import com.vesoft.nebula.graph.PlanDescription;
+import lombok.extern.slf4j.Slf4j;
 import org.junit.Assert;
 import org.junit.Test;
 
+@Slf4j
 public class TestData {
   Vertex getVertex(String vid) {
     List<Tag> tags = new ArrayList<>();
@@ -163,7 +164,7 @@ public class TestData {
     final HashSet<Value> set = new HashSet<>();
     set.add(new Value(Value.IVAL, 1L));
     set.add(new Value(Value.IVAL, 2L));
-    final HashMap<byte[], Value> map = new HashMap();
+    final Map<byte[], Value> map = new HashMap<>();
     map.put("key1".getBytes(), new Value(Value.IVAL, 1L));
     map.put("key2".getBytes(), new Value(Value.IVAL, 2L));
     final Row row =
@@ -174,7 +175,7 @@ public class TestData {
                 new Value(Value.BVAL, false),
                 new Value(Value.IVAL, 1L),
                 new Value(Value.FVAL, 10.01),
-                new Value(Value.SVAL, "value1".getBytes()),
+                new Value(Value.SVAL, "value1".getBytes(StandardCharsets.UTF_8)),
                 new Value(Value.LVAL, new NList(list)),
                 new Value(Value.UVAL, new NSet(set)),
                 new Value(Value.MVAL, new NMap(map)),
@@ -263,21 +264,33 @@ public class TestData {
     col0 = record.get("col0_empty"); // empty
     Assert.assertTrue(col0.isEmpty());
     Assert.assertFalse(col0.isNull());
-    // TODO: implement equals
-    //Assert.assertEquals(col0, record.get("col0_empty"));
+    Assert.assertEquals(col0, record.get("col0_empty"));
 
     var col1 = record.get(1);
-    Assert.assertFalse(col1.isEmpty());
     Assert.assertTrue(col1.isNull());
-    col1 = record.get("col1_null");
-    Assert.assertFalse(col1.isEmpty());
+    col1 = record.get("col1_empty");
+    try {
+      col1.isEmpty();
+      Assert.fail("Not a multi-value type.");
+    } catch (NotMultiValued ex) {
+      log.trace("Suppose to be here.");
+    }
     Assert.assertTrue(col1.isNull());
-    // TODO: implement equals
-    // Assert.assertEquals(col1, record.get("col1_empty"));
+    Assert.assertEquals(col1, record.get("col1_empty"));
 
     var col2 = record.get(2);
     Assert.assertFalse(col2.isTrue());
     Assert.assertTrue(col2.isFalse());
     Assert.assertFalse(col2.asBoolean());
+    Assert.assertEquals(col2, record.get("col2_bool"));
+
+    var col3 = record.get(3);
+    Assert.assertEquals(1L, col3.asInt());
+
+    var col4 = record.get(4);
+    Assert.assertEquals(0, Double.compare(10.01, col4.asDouble()));
+
+    var col5 = record.get(5);
+    Assert.assertEquals("value1", col5.asString());
   }
 }

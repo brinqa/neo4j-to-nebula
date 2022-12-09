@@ -126,7 +126,7 @@ public class SessionImpl implements Session {
 
   @Override
   public void reset() {
-    throw new UnsupportedOperationException();
+    log.debug("No implemented.");
   }
 
   @Override
