@@ -263,6 +263,8 @@ public class TestData {
     col0 = record.get("col0_empty"); // empty
     Assert.assertTrue(col0.isEmpty());
     Assert.assertFalse(col0.isNull());
+    // TODO: implement equals
+    //Assert.assertEquals(col0, record.get("col0_empty"));
 
     var col1 = record.get(1);
     Assert.assertFalse(col1.isEmpty());
@@ -270,5 +272,12 @@ public class TestData {
     col1 = record.get("col1_null");
     Assert.assertFalse(col1.isEmpty());
     Assert.assertTrue(col1.isNull());
+    // TODO: implement equals
+    // Assert.assertEquals(col1, record.get("col1_empty"));
+
+    var col2 = record.get(2);
+    Assert.assertFalse(col2.isTrue());
+    Assert.assertTrue(col2.isFalse());
+    Assert.assertFalse(col2.asBoolean());
   }
 }

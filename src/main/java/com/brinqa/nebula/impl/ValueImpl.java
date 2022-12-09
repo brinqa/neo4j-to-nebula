@@ -241,7 +241,7 @@ public class ValueImpl implements Value {
    */
   @Override
   public boolean isFalse() {
-    return valueWrapper.isBoolean() && valueWrapper.asBoolean();
+    return valueWrapper.isBoolean() && valueWrapper.asBoolean() == Boolean.FALSE;
   }
 
   /**
