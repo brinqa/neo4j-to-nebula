@@ -16,12 +16,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.driver;
+package org.neo4j.driver.internal;
 
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 
+import org.neo4j.driver.Value;
 import org.neo4j.driver.internal.value.NodeValue;
 import org.neo4j.driver.types.Node;
 

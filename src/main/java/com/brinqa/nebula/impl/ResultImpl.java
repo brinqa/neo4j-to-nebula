@@ -15,23 +15,21 @@
  */
 package com.brinqa.nebula.impl;
 
+import com.vesoft.nebula.client.graph.data.ResultSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
-
-import org.neo4j.driver.InternalRecord;
+import lombok.AllArgsConstructor;
+import org.neo4j.driver.internal.InternalRecord;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Records;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.exceptions.NoSuchRecordException;
 import org.neo4j.driver.internal.value.ValueAdapter;
 import org.neo4j.driver.summary.ResultSummary;
-
-import com.vesoft.nebula.client.graph.data.ResultSet;
-import lombok.AllArgsConstructor;
 
 @AllArgsConstructor
 public class ResultImpl implements Result {

@@ -16,7 +16,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.driver;
+package org.neo4j.driver.internal;
 
 import java.util.Arrays;
 import java.util.List;
@@ -25,6 +25,9 @@ import java.util.NoSuchElementException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.neo4j.driver.Record;
+import org.neo4j.driver.Value;
+import org.neo4j.driver.Values;
 import org.neo4j.driver.internal.types.InternalMapAccessorWithDefaultValue;
 import org.neo4j.driver.internal.util.Extract;
 import org.neo4j.driver.internal.util.QueryKeys;

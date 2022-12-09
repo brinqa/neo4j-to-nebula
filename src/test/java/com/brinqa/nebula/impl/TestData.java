@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.neo4j.driver.exceptions.value.NotMultiValued;
 
@@ -292,5 +293,28 @@ public class TestData {
 
     var col5 = record.get(5);
     Assert.assertEquals("value1", col5.asString());
+
+    var col6 = record.get(6);
+    var listTest = col6.asList();
+    Assert.assertEquals(List.of(1L, 2L), listTest);
+
+    // nebula supports set neo4j driver not so much
+    var col7 = record.get(7);
+    var setOfObjectTest = col7.asList();
+    Assert.assertEquals(Set.of(1L, 2L), new HashSet<>(setOfObjectTest));
+
+    var col8 = record.get(8);
+
+//        "col8_map".getBytes(),
+//        "col9_time".getBytes(),
+//        "col10_date".getBytes(),
+//        "col11_datetime".getBytes(),
+//        "col12_vertex".getBytes(),
+//        "col13_edge".getBytes(),
+//        "col14_path".getBytes(),
+//        "col15_point".getBytes(),
+//        "col16_polygon".getBytes(),
+//        "col17_linestring".getBytes(),
+//        "col18_duration".getBytes());
   }
 }

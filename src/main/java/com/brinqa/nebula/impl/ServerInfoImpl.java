@@ -44,6 +44,7 @@ public class ServerInfoImpl implements ServerInfo {
    *     <b>Method might be removed in the next major release.</b>
    */
   @Override
+  @Deprecated
   public String version() {
     return "";
   }

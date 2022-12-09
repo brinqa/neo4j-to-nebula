@@ -16,7 +16,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.neo4j.driver;
+package org.neo4j.driver.internal;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,7 +24,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
-import org.neo4j.driver.internal.AsValue;
+import org.neo4j.driver.Value;
 import org.neo4j.driver.internal.value.PathValue;
 import org.neo4j.driver.types.Entity;
 import org.neo4j.driver.types.Node;
