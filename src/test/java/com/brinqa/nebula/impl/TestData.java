@@ -16,6 +16,10 @@
 package com.brinqa.nebula.impl;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.OffsetTime;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -304,17 +308,26 @@ public class TestData {
     Assert.assertEquals(Set.of(1L, 2L), new HashSet<>(setOfObjectTest));
 
     var col8 = record.get(8);
+    Assert.assertEquals(Map.of("key1", 1L, "key2", 2L), col8.asMap());
 
-//        "col8_map".getBytes(),
-//        "col9_time".getBytes(),
-//        "col10_date".getBytes(),
-//        "col11_datetime".getBytes(),
-//        "col12_vertex".getBytes(),
-//        "col13_edge".getBytes(),
-//        "col14_path".getBytes(),
-//        "col15_point".getBytes(),
-//        "col16_polygon".getBytes(),
-//        "col17_linestring".getBytes(),
-//        "col18_duration".getBytes());
+    var col9 = record.get(9);
+    var zoneOffset = ZoneOffset.ofTotalSeconds(28800);
+    var expectedTime = OffsetTime.of(10, 30, 0, 100000, zoneOffset);
+    Assert.assertEquals(expectedTime, col9.asOffsetTime());
+
+    var col10 = record.get(10);
+    var expectedDate = LocalDate.of(2020,10,10);
+    Assert.assertEquals(expectedDate, col10.asLocalDate());
+
+    var expectedDateTime = ZonedDateTime.of(1, 1, 1, 1, 1, 1, 1, zoneOffset);
+    //        "col10_date".getBytes(),
+    //        "col11_datetime".getBytes(),
+    //        "col12_vertex".getBytes(),
+    //        "col13_edge".getBytes(),
+    //        "col14_path".getBytes(),
+    //        "col15_point".getBytes(),
+    //        "col16_polygon".getBytes(),
+    //        "col17_linestring".getBytes(),
+    //        "col18_duration".getBytes());
   }
 }

@@ -42,7 +42,7 @@ public class BasicCypherTest {
   private static final String SPACE_NAME = "test_space";
 
   @ClassRule
-  public static DockerComposeContainer environment =
+  public static DockerComposeContainer<?> environment =
       new DockerComposeContainer(new File("docker/docker-compose.yml"))
           .withExposedService("graphd_1", 9669);
 
