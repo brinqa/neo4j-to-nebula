@@ -58,8 +58,13 @@ import com.vesoft.nebula.client.graph.data.ResultSet;
 import com.vesoft.nebula.graph.ExecutionResponse;
 import com.vesoft.nebula.graph.PlanDescription;
 import lombok.extern.slf4j.Slf4j;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @Slf4j
 public class TestData {
@@ -254,94 +259,95 @@ public class TestData {
     final var resultImpl = new ResultImpl(resultSet, summary);
 
     // assert the summary
-    Assert.assertSame(summary, resultImpl.consume());
+    assertSame(summary, resultImpl.consume());
 
     // check a simple value
     final var records = resultImpl.list();
-    Assert.assertEquals(1, records.size());
+    assertEquals(1, records.size());
 
     // check the values within one record
     final var record = records.get(0);
     var col0 = record.get(0); // empty
-    Assert.assertTrue(col0.isEmpty());
-    Assert.assertFalse(col0.isNull());
+    assertTrue(col0.isEmpty());
+    assertFalse(col0.isNull());
     col0 = record.get("col0_empty"); // empty
-    Assert.assertTrue(col0.isEmpty());
-    Assert.assertFalse(col0.isNull());
-    Assert.assertEquals(col0, record.get("col0_empty"));
+    assertTrue(col0.isEmpty());
+    assertFalse(col0.isNull());
+    assertEquals(col0, record.get("col0_empty"));
 
     var col1 = record.get(1);
-    Assert.assertTrue(col1.isNull());
+    assertTrue(col1.isNull());
     col1 = record.get("col1_empty");
     try {
       col1.isEmpty();
-      Assert.fail("Not a multi-value type.");
+      fail("Not a multi-value type.");
     } catch (NotMultiValued ex) {
       log.trace("Suppose to be here.");
     }
-    Assert.assertTrue(col1.isNull());
-    Assert.assertEquals(col1, record.get("col1_empty"));
+    assertTrue(col1.isNull());
+    assertEquals(col1, record.get("col1_empty"));
 
     var col2 = record.get(2);
-    Assert.assertFalse(col2.isTrue());
-    Assert.assertTrue(col2.isFalse());
-    Assert.assertFalse(col2.asBoolean());
-    Assert.assertEquals(col2, record.get("col2_bool"));
+    assertFalse(col2.isTrue());
+    assertTrue(col2.isFalse());
+    assertFalse(col2.asBoolean());
+    assertEquals(col2, record.get("col2_bool"));
 
     var col3 = record.get(3);
-    Assert.assertEquals(1L, col3.asInt());
+    assertEquals(1L, col3.asInt());
 
     var col4 = record.get(4);
-    Assert.assertEquals(0, Double.compare(10.01, col4.asDouble()));
+    assertEquals(0, Double.compare(10.01, col4.asDouble()));
 
     var col5 = record.get(5);
-    Assert.assertEquals("value1", col5.asString());
+    assertEquals("value1", col5.asString());
 
     var col6 = record.get(6);
     var listTest = col6.asList();
-    Assert.assertEquals(List.of(1L, 2L), listTest);
+    assertEquals(List.of(1L, 2L), listTest);
 
     // nebula supports set neo4j driver not so much
     var col7 = record.get(7);
     var setOfObjectTest = col7.asList();
-    Assert.assertEquals(Set.of(1L, 2L), new HashSet<>(setOfObjectTest));
+    assertEquals(Set.of(1L, 2L), new HashSet<>(setOfObjectTest));
 
     var col8 = record.get(8);
-    Assert.assertEquals(Map.of("key1", 1L, "key2", 2L), col8.asMap());
+    assertEquals(Map.of("key1", 1L, "key2", 2L), col8.asMap());
 
     var col9 = record.get(9);
     var zoneOffset = ZoneOffset.ofTotalSeconds(28800);
     var expectedTime = OffsetTime.of(10, 30, 0, 100000, zoneOffset);
-    Assert.assertEquals(expectedTime, col9.asOffsetTime());
+    assertEquals(expectedTime, col9.asOffsetTime());
 
     var col10 = record.get(10);
     var expectedDate = LocalDate.of(2020, 10, 10);
-    Assert.assertEquals(expectedDate, col10.asLocalDate());
+    assertEquals(expectedDate, col10.asLocalDate());
 
     var col11 = record.get(11);
     var expectedDateTime = ZonedDateTime.of(2020, 10, 10, 10, 30, 0, 100000, zoneOffset);
-    Assert.assertEquals(expectedDateTime, col11.asZonedDateTime());
+    assertEquals(expectedDateTime, col11.asZonedDateTime());
 
     var col12 = record.get(12);
     var expectedNodeValues =
         Map.of("prop0", 0L, "prop1", 1L, "prop2", 2L, "prop3", 3L, "prop4", 4L);
-    Assert.assertEquals(expectedNodeValues, col12.asNode().asMap());
+    assertEquals(expectedNodeValues, col12.asNode().asMap());
     var expectedTags = List.of("tag0", "tag1", "tag2");
-    Assert.assertEquals(col12.asNode().labels(), expectedTags);
-    Assert.assertEquals(2001L, col12.asNode().id());
+    assertEquals(col12.asNode().labels(), expectedTags);
+    assertEquals(2001L, col12.asNode().id());
 
     var col13 = record.get(13);
-    var expectedEdgeValues = Map.of("prop0", 0L, "prop1", 1L, "prop2", 2L, "prop3", 3L, "prop4", 4L);
+    var expectedEdgeValues =
+        Map.of("prop0", 0L, "prop1", 1L, "prop2", 2L, "prop3", 3L, "prop4", 4L);
     var actualRelationship = col13.asRelationship();
-    Assert.assertEquals(Long.MAX_VALUE, actualRelationship.id());
-    Assert.assertEquals(2001L, actualRelationship.startNodeId());
-    Assert.assertEquals(3001L, actualRelationship.endNodeId());
-    Assert.assertEquals(expectedEdgeValues, actualRelationship.asMap());
+    assertEquals(Long.MAX_VALUE, actualRelationship.id());
+    assertEquals(2001L, actualRelationship.startNodeId());
+    assertEquals(3001L, actualRelationship.endNodeId());
+    assertEquals(expectedEdgeValues, actualRelationship.asMap());
 
     var col14 = record.get(14);
     var actualPath = col14.asPath();
-//    var expectedPath = new InternalPath(List.of());
-//    Assert.assertEquals(expectedPath, actualPath);
+    //    var expectedPath = new InternalPath(List.of());
+    //    assertEquals(expectedPath, actualPath);
 
     // not supported "col15_point".getBytes(),
     // not supported "col16_polygon".getBytes(),
@@ -349,6 +355,6 @@ public class TestData {
 
     var col18 = record.get(18);
     var expectedIsoDuration = new InternalIsoDuration(1, 0, 100, 20_000);
-    Assert.assertEquals(expectedIsoDuration, col18.asIsoDuration());
+    assertEquals(expectedIsoDuration, col18.asIsoDuration());
   }
 }
