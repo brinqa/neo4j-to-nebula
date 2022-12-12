@@ -15,6 +15,17 @@
  */
 package com.brinqa.nebula.impl;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
+import com.vesoft.nebula.Date;
+import com.vesoft.nebula.Value;
+import com.vesoft.nebula.client.graph.data.DateTimeWrapper;
+import com.vesoft.nebula.client.graph.data.DurationWrapper;
+import com.vesoft.nebula.client.graph.data.Node;
+import com.vesoft.nebula.client.graph.data.PathWrapper;
+import com.vesoft.nebula.client.graph.data.Relationship;
+import com.vesoft.nebula.client.graph.data.TimeWrapper;
+import com.vesoft.nebula.client.graph.data.ValueWrapper;
 import java.io.UnsupportedEncodingException;
 import java.time.Duration;
 import java.time.LocalDate;
@@ -31,7 +42,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
 import org.neo4j.driver.internal.InternalIsoDuration;
 import org.neo4j.driver.internal.InternalNode;
 import org.neo4j.driver.internal.InternalPath;
@@ -53,18 +63,6 @@ import org.neo4j.driver.internal.value.TimeValue;
 import org.neo4j.driver.internal.value.ValueAdapter;
 import org.neo4j.driver.types.IsoDuration;
 import org.neo4j.driver.types.Path.Segment;
-
-import com.vesoft.nebula.Date;
-import com.vesoft.nebula.Value;
-import com.vesoft.nebula.client.graph.data.DateTimeWrapper;
-import com.vesoft.nebula.client.graph.data.DurationWrapper;
-import com.vesoft.nebula.client.graph.data.Node;
-import com.vesoft.nebula.client.graph.data.PathWrapper;
-import com.vesoft.nebula.client.graph.data.Relationship;
-import com.vesoft.nebula.client.graph.data.TimeWrapper;
-import com.vesoft.nebula.client.graph.data.ValueWrapper;
-
-import static java.nio.charset.StandardCharsets.UTF_8;
 
 /** Convert from Nebula type to Neo4j. */
 public class NebulaToNeo4jConverter {
