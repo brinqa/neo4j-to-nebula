@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.neo4j.driver.exceptions.value.NotMultiValued;
+import org.neo4j.driver.internal.InternalIsoDuration;
 
 import com.vesoft.nebula.Coordinate;
 import com.vesoft.nebula.DataSet;
@@ -62,7 +63,7 @@ import org.junit.Test;
 
 @Slf4j
 public class TestData {
-  Vertex getVertex(String vid) {
+  Vertex getVertex(long vid) {
     List<Tag> tags = new ArrayList<>();
     for (int i = 0; i < 3; i++) {
       Map<byte[], Value> props = new HashMap<>();
@@ -74,10 +75,10 @@ public class TestData {
       Tag tag = new Tag(String.format("tag%d", i).getBytes(), props);
       tags.add(tag);
     }
-    return new Vertex(new Value(Value.SVAL, vid.getBytes()), tags);
+    return new Vertex(new Value(Value.IVAL, vid), tags);
   }
 
-  Edge getEdge(String srcId, String dstId) {
+  Edge getEdge(long srcId, long dstId) {
     Map<byte[], Value> props = new HashMap<>();
     for (int i = 0; i < 5; i++) {
       Value value = new Value();
@@ -85,17 +86,17 @@ public class TestData {
       props.put(String.format("prop%d", i).getBytes(), value);
     }
     return new Edge(
-        new Value(Value.SVAL, srcId.getBytes()),
-        new Value(Value.SVAL, dstId.getBytes()),
+        new Value(Value.IVAL, srcId),
+        new Value(Value.IVAL, dstId),
         1,
         "classmate".getBytes(),
         100,
         props);
   }
 
-  Path getPath(String startId, int stepsNum) {
+  Path getPath(long startId, int stepsNum) {
     List<Step> steps = new ArrayList<>();
-    for (int i = 0; i < stepsNum; i++) {
+    for (long i = 0; i < stepsNum; i++) {
       Map<byte[], Value> props = new HashMap<>();
       for (int j = 0; j < 5; j++) {
         Value value = new Value();
@@ -106,9 +107,7 @@ public class TestData {
       if (i % 2 != 0) {
         type = -1;
       }
-      steps.add(
-          new Step(
-              getVertex(String.format("vertex%d", i)), type, ("classmate").getBytes(), 100, props));
+      steps.add(new Step(getVertex(i), type, ("classmate").getBytes(), 100, props));
     }
     return new Path(getVertex(startId), steps);
   }
@@ -190,9 +189,9 @@ public class TestData {
                     Value.DTVAL,
                     new DateTime(
                         (short) 2020, (byte) 10, (byte) 10, (byte) 10, (byte) 30, (byte) 0, 100)),
-                new Value(Value.VVAL, getVertex("Tom")),
-                new Value(Value.EVAL, getEdge("Tom", "Lily")),
-                new Value(Value.PVAL, getPath("Tom", 3)),
+                new Value(Value.VVAL, getVertex(2001)),
+                new Value(Value.EVAL, getEdge(2001L, 3001L)),
+                new Value(Value.PVAL, getPath(1001L, 3)),
                 new Value(
                     Value.GGVAL,
                     new Geography(Geography.PTVAL, new Point(new Coordinate(1.0, 2.0)))),
@@ -316,18 +315,40 @@ public class TestData {
     Assert.assertEquals(expectedTime, col9.asOffsetTime());
 
     var col10 = record.get(10);
-    var expectedDate = LocalDate.of(2020,10,10);
+    var expectedDate = LocalDate.of(2020, 10, 10);
     Assert.assertEquals(expectedDate, col10.asLocalDate());
 
-    var expectedDateTime = ZonedDateTime.of(1, 1, 1, 1, 1, 1, 1, zoneOffset);
-    //        "col10_date".getBytes(),
-    //        "col11_datetime".getBytes(),
-    //        "col12_vertex".getBytes(),
-    //        "col13_edge".getBytes(),
-    //        "col14_path".getBytes(),
-    //        "col15_point".getBytes(),
-    //        "col16_polygon".getBytes(),
-    //        "col17_linestring".getBytes(),
-    //        "col18_duration".getBytes());
+    var col11 = record.get(11);
+    var expectedDateTime = ZonedDateTime.of(2020, 10, 10, 10, 30, 0, 100000, zoneOffset);
+    Assert.assertEquals(expectedDateTime, col11.asZonedDateTime());
+
+    var col12 = record.get(12);
+    var expectedNodeValues =
+        Map.of("prop0", 0L, "prop1", 1L, "prop2", 2L, "prop3", 3L, "prop4", 4L);
+    Assert.assertEquals(expectedNodeValues, col12.asNode().asMap());
+    var expectedTags = List.of("tag0", "tag1", "tag2");
+    Assert.assertEquals(col12.asNode().labels(), expectedTags);
+    Assert.assertEquals(2001L, col12.asNode().id());
+
+    var col13 = record.get(13);
+    var expectedEdgeValues = Map.of("prop0", 0L, "prop1", 1L, "prop2", 2L, "prop3", 3L, "prop4", 4L);
+    var actualRelationship = col13.asRelationship();
+    Assert.assertEquals(Long.MAX_VALUE, actualRelationship.id());
+    Assert.assertEquals(2001L, actualRelationship.startNodeId());
+    Assert.assertEquals(3001L, actualRelationship.endNodeId());
+    Assert.assertEquals(expectedEdgeValues, actualRelationship.asMap());
+
+    var col14 = record.get(14);
+    var actualPath = col14.asPath();
+//    var expectedPath = new InternalPath(List.of());
+//    Assert.assertEquals(expectedPath, actualPath);
+
+    // not supported "col15_point".getBytes(),
+    // not supported "col16_polygon".getBytes(),
+    // not supported "col17_linestring".getBytes(),
+
+    var col18 = record.get(18);
+    var expectedIsoDuration = new InternalIsoDuration(1, 0, 100, 20_000);
+    Assert.assertEquals(expectedIsoDuration, col18.asIsoDuration());
   }
 }

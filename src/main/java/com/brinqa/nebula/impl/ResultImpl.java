@@ -23,11 +23,11 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import lombok.AllArgsConstructor;
-import org.neo4j.driver.internal.InternalRecord;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.Records;
 import org.neo4j.driver.Result;
 import org.neo4j.driver.exceptions.NoSuchRecordException;
+import org.neo4j.driver.internal.InternalRecord;
 import org.neo4j.driver.internal.value.ValueAdapter;
 import org.neo4j.driver.summary.ResultSummary;
 
