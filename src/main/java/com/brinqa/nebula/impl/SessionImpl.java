@@ -15,15 +15,14 @@
  */
 package com.brinqa.nebula.impl;
 
-import static com.vesoft.nebula.client.graph.net.Session.value2Nvalue;
-import static java.nio.charset.StandardCharsets.UTF_8;
-
-import com.google.common.base.Throwables;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
-import lombok.extern.slf4j.Slf4j;
+
+import com.google.common.base.Throwables;
+
 import org.neo4j.driver.Bookmark;
 import org.neo4j.driver.Query;
 import org.neo4j.driver.Record;
@@ -35,6 +34,14 @@ import org.neo4j.driver.TransactionWork;
 import org.neo4j.driver.Value;
 import org.neo4j.driver.exceptions.ClientException;
 
+import com.vesoft.nebula.client.graph.data.ResultSet;
+import io.github.resilience4j.retry.Retry;
+import io.github.resilience4j.retry.RetryConfig;
+import lombok.extern.slf4j.Slf4j;
+
+import static com.vesoft.nebula.client.graph.net.Session.value2Nvalue;
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 @Slf4j
 public class SessionImpl implements Session {
 
@@ -42,9 +49,32 @@ public class SessionImpl implements Session {
   private final ConnectionPool pool;
   private final AtomicBoolean openState = new AtomicBoolean(true);
 
+  private final Retry useSpaceRetry;
+
   public SessionImpl(final ConnectionPool pool, final String spaceName) {
     this.pool = pool;
     this.spaceName = spaceName;
+
+    final RetryConfig retryConfig =
+        RetryConfig.<ResultSet>custom()
+            .maxAttempts(40)
+            .failAfterMaxAttempts(true)
+            .waitDuration(Duration.ofSeconds(1))
+            .retryOnResult(this::useSpaceRetryPredicate)
+            .build();
+    this.useSpaceRetry = Retry.of("useSpace", retryConfig);
+  }
+
+  boolean useSpaceRetryPredicate(ResultSet rs) {
+    if (rs.isSucceeded()) {
+      return false;
+    }
+    if (NebulaErrorCodes.E_SPACE_NOT_FOUND != rs.getErrorCode()) {
+      final var msg = "Failed on use space, Code: {}, Message: {}";
+      log.error(msg, rs.getErrorCode(), rs.getErrorMessage());
+      throw new ClientException(rs.getErrorMessage());
+    }
+    return true;
   }
 
   @Override
@@ -188,11 +218,7 @@ public class SessionImpl implements Session {
       final Connection c = this.pool.borrowObject();
       if (c.updateCurrentSpace(this.spaceName)) {
         final var stmt = String.format("USE %s;", this.spaceName);
-        final var rsp = c.execute(stmt, Map.of());
-        if (!rsp.isSucceeded()) {
-          // FIXME: Fail if the space doesn't exist, retry for connection issues.
-          throw new ClientException("Failed to use space: " + spaceName, rsp.getErrorMessage());
-        }
+        this.useSpaceRetry.executeSupplier(() -> c.execute(stmt, Map.of()));
       }
       try {
         return consumer.apply(c);

@@ -26,7 +26,6 @@ import com.brinqa.nebula.DriverConfig;
 import com.brinqa.nebula.NebulaGraphService;
 
 import com.vesoft.nebula.client.graph.NebulaPoolConfig;
-import com.vesoft.nebula.client.graph.data.ResultSet;
 import com.vesoft.nebula.client.graph.exception.AuthFailedException;
 import com.vesoft.nebula.client.graph.exception.ClientServerIncompatibleException;
 import com.vesoft.nebula.client.graph.exception.IOErrorException;
@@ -84,8 +83,11 @@ public class BasicCypherTest {
       pool.init(cfg.getAddresses(), poolCfg);
       var session = pool.getSession("root", "nebula", false);
       try {
-        session.execute(String.join(" ", queries));
-        waitForSpaceToExist(session);
+        final var rs = session.execute(String.join(" ", queries));
+        assertTrue(rs.isSucceeded(), rs.getErrorMessage());
+        TimeUnit.SECONDS.sleep(15);
+      } catch (InterruptedException ex) {
+        throw new RuntimeException(ex);
       } finally {
         session.release();
       }
@@ -98,29 +100,32 @@ public class BasicCypherTest {
     driver = NebulaGraphService.newDriver(driverConfig);
   }
 
-  static void waitForSpaceToExist(com.vesoft.nebula.client.graph.net.Session session) {
-    // wait for it to setup and test
-    int i = 0;
-    for (; i < 40; i++) {
-      log.info("Waiting for SPACE to exist.");
-      try {
-        final ResultSet rs = session.execute("USE test_space; MATCH (n:Host) RETURN n LIMIT 1;");
-        if (rs.isSucceeded()) {
-          break;
-        }
-        try {
-          TimeUnit.SECONDS.sleep(1);
-        } catch (InterruptedException e) {
-          throw new RuntimeException(e);
-        }
-      } catch (IOErrorException e) {
-        log.warn("I/O Error encountered retrying.", e);
-      }
-    }
-    if (20 == i) {
-      throw new IllegalStateException("Unable to setup nebula, in time");
-    }
-  }
+  //  static void waitForSpaceToExist(com.vesoft.nebula.client.graph.net.Session session) {
+  //    int RETRIES = 40;
+  //    // wait for it to setup and test
+  //    int i = 0;
+  //    for (; i < RETRIES; i++) {
+  //      log.info("Waiting for SPACE to exist.");
+  //      try {
+  //        final ResultSet rs = session.execute("USE test_space; MATCH (n:Host) RETURN n LIMIT
+  // 1;");
+  //        if (rs.isSucceeded()) {
+  //          break;
+  //        }
+  //        log.warn("Error Code: {}, Error Message: {}", rs.getErrorCode(), rs.getErrorMessage());
+  //        try {
+  //          TimeUnit.SECONDS.sleep(1);
+  //        } catch (InterruptedException e) {
+  //          throw new RuntimeException(e);
+  //        }
+  //      } catch (IOErrorException e) {
+  //        log.warn("I/O Error encountered retrying.", e);
+  //      }
+  //    }
+  //    if (RETRIES == i) {
+  //      throw new IllegalStateException("Unable to setup nebula, in time");
+  //    }
+  //  }
 
   @AfterAll
   public static void destroy() {
@@ -143,7 +148,7 @@ public class BasicCypherTest {
   @Order(2)
   public void testReadObjects() {
     // create a schema tag
-    try (Session session = driver.session()) {
+    try (final Session session = driver.session()) {
       final String INSERT_FMT = "INSERT VERTEX Host (%s) VALUES %d:(%s)";
       final var sampleNames = String.join(",", "name", "ipAddress");
       final var sampleValues = String.join(",", "\"bob\"", "\"192.168.1.1\"");
