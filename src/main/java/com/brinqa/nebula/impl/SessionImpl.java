@@ -217,7 +217,7 @@ public class SessionImpl implements Session {
       // FIXME: Retry if there's some other error
       final Connection c = this.pool.borrowObject();
       if (c.updateCurrentSpace(this.spaceName)) {
-        final var stmt = String.format("USE %s;", this.spaceName);
+        final var stmt = "USE " + this.spaceName + ";";
         this.useSpaceRetry.executeSupplier(() -> c.execute(stmt, Map.of()));
       }
       try {

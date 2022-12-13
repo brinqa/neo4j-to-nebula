@@ -39,6 +39,7 @@ import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.testcontainers.containers.DockerComposeContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
@@ -55,13 +56,15 @@ public class BasicCypherTest {
   @Container
   public static DockerComposeContainer<?> environment =
       new DockerComposeContainer(new File("docker/docker-compose.yml"))
-          .withExposedService("graphd_1", 9669);
+          .waitingFor("console", Wait.forLogMessage(".*nebula_running.*", 1));
 
   /** Setup the space for testing. */
   @BeforeAll
   public static void setup()
       throws UnknownHostException, IOErrorException, AuthFailedException,
-          ClientServerIncompatibleException, NotValidConnectionException {
+          ClientServerIncompatibleException, NotValidConnectionException, InterruptedException {
+    TimeUnit.SECONDS.sleep(10);
+
     final var cfg = DriverConfig.defaultConfig(SPACE_NAME);
     log.info("DriverConfig: {}", cfg);
 
@@ -70,7 +73,7 @@ public class BasicCypherTest {
           // clear out
           "DROP SPACE IF EXISTS test_space;",
           // create new space
-          "CREATE SPACE test_space(partition_num=10, replica_factor=1, vid_type=INT64);",
+          "CREATE SPACE test_space(vid_type=INT64);",
           // create tag
           "USE test_space;",
           "CREATE TAG Host(name string, ipAddress string);",
@@ -85,9 +88,7 @@ public class BasicCypherTest {
       try {
         final var rs = session.execute(String.join(" ", queries));
         assertTrue(rs.isSucceeded(), rs.getErrorMessage());
-        TimeUnit.SECONDS.sleep(15);
-      } catch (InterruptedException ex) {
-        throw new RuntimeException(ex);
+        TimeUnit.SECONDS.sleep(10);
       } finally {
         session.release();
       }
