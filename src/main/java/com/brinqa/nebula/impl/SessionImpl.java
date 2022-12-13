@@ -60,12 +60,12 @@ public class SessionImpl implements Session {
             .maxAttempts(40)
             .failAfterMaxAttempts(true)
             .waitDuration(Duration.ofSeconds(1))
-            .retryOnResult(this::useSpaceRetryPredicate)
+            .retryOnResult(SessionImpl::useSpaceRetryPredicate)
             .build();
     this.useSpaceRetry = Retry.of("useSpace", retryConfig);
   }
 
-  boolean useSpaceRetryPredicate(ResultSet rs) {
+  static boolean useSpaceRetryPredicate(ResultSet rs) {
     if (rs.isSucceeded()) {
       return false;
     }
@@ -243,12 +243,7 @@ public class SessionImpl implements Session {
     query
         .parameters()
         .asMap()
-        .forEach(
-            (key, value) -> {
-              final var k = key.getBytes(UTF_8);
-              final var v = value2Nvalue(value);
-              map.put(k, v);
-            });
+        .forEach((key, value) -> map.put(key.getBytes(UTF_8), value2Nvalue(value)));
     return map;
   }
 }
