@@ -101,7 +101,7 @@ public class BasicCypherTest {
   static void waitForSpaceToExist(com.vesoft.nebula.client.graph.net.Session session) {
     // wait for it to setup and test
     int i = 0;
-    for (; i < 20; i++) {
+    for (; i < 40; i++) {
       log.info("Waiting for SPACE to exist.");
       try {
         final ResultSet rs = session.execute("USE test_space; MATCH (n:Host) RETURN n LIMIT 1;");
@@ -118,7 +118,7 @@ public class BasicCypherTest {
       }
     }
     if (20 == i) {
-      throw new IllegalStateException("Unable to setup nebula.");
+      throw new IllegalStateException("Unable to setup nebula, in time");
     }
   }
 
